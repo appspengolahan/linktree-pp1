@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+  <defs>
+    <linearGradient id="fishGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff066"/>
+      <stop offset="40%" stop-color="#facc15"/>
+      <stop offset="85%" stop-color="#eab308"/>
+      <stop offset="100%" stop-color="#ca8a04"/>
+    </linearGradient>
+    <linearGradient id="fishFin" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="100%" stop-color="#eab308"/>
+    </linearGradient>
+    <linearGradient id="greenBar" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4ade80"/>
+      <stop offset="100%" stop-color="#22c55e"/>
+    </linearGradient>
+    <pattern id="fishScalePattern" width="12" height="12" patternUnits="userSpaceOnUse">
+      <path d="M 0,6 Q 6,0 12,6 Q 6,12 0,6" fill="none" stroke="#b45309" stroke-width="0.8" opacity="0.6"/>
+    </pattern>
+  </defs>
+
+  <rect width="500" height="500" rx="90" fill="#0f172a"/>
+  <circle cx="250" cy="250" r="230" fill="none" stroke="#1e3a8a" stroke-width="3" stroke-dasharray="8 8"/>
+
+  <!-- Inner circular badge -->
+  <circle cx="250" cy="240" r="180" fill="#ffffff" stroke="#38bdf8" stroke-width="4"/>
+
+  <!-- Left Fish -->
+  <g id="leftFish">
+    <path d="M 245 120 C 180 122, 130 165, 110 235 C 105 255, 105 270, 122 274 C 135 276, 140 252, 150 220 C 168 175, 208 158, 245 162 Z" 
+          fill="url(#fishGold)" stroke="#000000" stroke-width="3.5"/>
+    <ellipse cx="132" cy="298" rx="14" ry="20" fill="url(#fishFin)" stroke="#000000" stroke-width="3"/>
+  </g>
+
+  <!-- Right Fish -->
+  <g id="rightFish">
+    <path d="M 255 120 C 320 122, 370 165, 390 235 C 395 255, 395 270, 378 274 C 365 276, 360 252, 350 220 C 332 175, 292 158, 255 162 Z" 
+          fill="url(#fishGold)" stroke="#000000" stroke-width="3.5"/>
+    <ellipse cx="368" cy="298" rx="14" ry="20" fill="url(#fishFin)" stroke="#000000" stroke-width="3"/>
+  </g>
+
+  <!-- Number 153 -->
+  <text x="250" y="240" 
+        font-family="'Impact', 'Arial Black', sans-serif" 
+        font-size="76" 
+        font-weight="900" 
+        letter-spacing="2"
+        text-anchor="middle" 
+        fill="#dc2626" 
+        stroke="#000000" 
+        stroke-width="4">
+    153
+  </text>
+
+  <!-- Green Ribbon -->
+  <rect x="95" y="252" width="310" height="32" rx="3" fill="url(#greenBar)" stroke="#000000" stroke-width="3"/>
+  <text x="250" y="275" 
+        font-family="'Times New Roman', serif" 
+        font-size="22" 
+        font-weight="900" 
+        letter-spacing="1"
+        text-anchor="middle" 
+        fill="#000000">
+    PT. BATU KARANG
+  </text>
+
+  <!-- DIVISI PRODUKSI I -->
+  <text x="250" y="340" 
+        font-family="'Plus Jakarta Sans', sans-serif" 
+        font-size="22" 
+        font-weight="900" 
+        letter-spacing="2"
+        text-anchor="middle" 
+        fill="#0f172a">
+    DIVISI PRODUKSI I
+  </text>
+</svg>

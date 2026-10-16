@@ -1,0 +1,6 @@
+{
+  "name": "Link Hub - Divisi Produksi I PT Batu Karang",
+  "description": "Portal tautan terpadu, direktori operasional, dan link tree resmi Divisi Produksi I PT Batu Karang dengan integrasi headless Google Apps Script & Google Sheets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
