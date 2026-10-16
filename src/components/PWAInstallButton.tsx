@@ -15,17 +15,8 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
   const { isInstallable, isInstalled, isIOS, isAndroid, install } = usePWAInstall();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleClick = async () => {
-    // If the browser supports beforeinstallprompt and it is available, trigger directly
-    if (isInstallable) {
-      const success = await install();
-      if (!success) {
-        setIsModalOpen(true);
-      }
-    } else {
-      // Otherwise open the guided install modal (iOS Safari, Desktop Chrome manual, etc.)
-      setIsModalOpen(true);
-    }
+  const handleClick = () => {
+    setIsModalOpen(true);
   };
 
   // If app is already running as standalone PWA

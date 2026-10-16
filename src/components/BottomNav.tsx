@@ -20,15 +20,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const { isInstallable, isInstalled, install } = usePWAInstall();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleInstallClick = async () => {
-    if (isInstallable) {
-      const success = await install();
-      if (!success) {
-        setIsModalOpen(true);
-      }
-    } else {
-      setIsModalOpen(true);
-    }
+  const handleInstallClick = () => {
+    setIsModalOpen(true);
   };
 
   const navItems = [

@@ -32,15 +32,8 @@ export const PWAInstallBanner: React.FC = () => {
     localStorage.setItem('bkr_pwa_banner_dismissed', String(Date.now()));
   };
 
-  const handleAction = async () => {
-    if (isInstallable) {
-      const success = await install();
-      if (!success) {
-        setIsModalOpen(true);
-      }
-    } else {
-      setIsModalOpen(true);
-    }
+  const handleAction = () => {
+    setIsModalOpen(true);
   };
 
   // If already running in standalone PWA or user dismissed

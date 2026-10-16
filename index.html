@@ -16,10 +16,21 @@
     <meta name="apple-mobile-web-app-title" content="LinkHub 153" />
     <meta name="application-name" content="LinkHub 153" />
 
-    <!-- PWA & Apple Touch Icons -->
+    <!-- PWA Manifest & Apple Touch Icons -->
+    <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <script>
+      // Capture early beforeinstallprompt event before bundle finishes loading
+      window.__deferredPrompt = null;
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__deferredPrompt = e;
+        window.dispatchEvent(new CustomEvent('pwa-prompt-ready'));
+      });
+    </script>
 
     <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

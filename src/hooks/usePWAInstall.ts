@@ -39,22 +39,39 @@ export function usePWAInstall() {
     setIsDesktop(isDesktopDevice);
     setIsReady(true);
 
+    // Check if an early beforeinstallprompt was already captured before hook mounted
+    const earlyPrompt = (window as unknown as { __deferredPrompt?: BeforeInstallPromptEvent }).__deferredPrompt;
+    if (earlyPrompt) {
+      setDeferredPrompt(earlyPrompt);
+    }
+
     const handleBeforeInstallPrompt = (e: Event) => {
-      // Prevent browser's default minimal infobar so our custom prompt controls it
       e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      const promptEvent = e as BeforeInstallPromptEvent;
+      (window as unknown as { __deferredPrompt?: BeforeInstallPromptEvent }).__deferredPrompt = promptEvent;
+      setDeferredPrompt(promptEvent);
+    };
+
+    const handlePromptReady = () => {
+      const p = (window as unknown as { __deferredPrompt?: BeforeInstallPromptEvent }).__deferredPrompt;
+      if (p) {
+        setDeferredPrompt(p);
+      }
     };
 
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setDeferredPrompt(null);
+      (window as unknown as { __deferredPrompt?: null }).__deferredPrompt = null;
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('pwa-prompt-ready', handlePromptReady);
     window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('pwa-prompt-ready', handlePromptReady);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
