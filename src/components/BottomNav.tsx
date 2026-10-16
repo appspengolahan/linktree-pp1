@@ -1,5 +1,7 @@
-import React from 'react';
-import { LayoutGrid, Factory, FileSpreadsheet, Database, ShieldCheck, Flame } from 'lucide-react';
+import React, { useState } from 'react';
+import { LayoutGrid, Factory, FileSpreadsheet, Database, ShieldCheck, Download } from 'lucide-react';
+import { usePWAInstall } from '../hooks/usePWAInstall';
+import { PWAInstallModal } from './PWAInstallModal';
 
 interface BottomNavProps {
   selectedCategory: string;
@@ -15,6 +17,20 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   onOpenGasCenter,
   onOpenAdmin,
 }) => {
+  const { isInstallable, isInstalled, install } = usePWAInstall();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleInstallClick = async () => {
+    if (isInstallable) {
+      const success = await install();
+      if (!success) {
+        setIsModalOpen(true);
+      }
+    } else {
+      setIsModalOpen(true);
+    }
+  };
+
   const navItems = [
     { id: 'Semua', label: 'Semua', icon: LayoutGrid },
     { id: 'Operasional & Lini', label: 'Lini', icon: Factory },
@@ -22,41 +38,56 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   ];
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/90 backdrop-blur-xl border-t border-slate-800/90 px-3 pt-2 pb-[max(0.6rem,env(safe-area-inset-bottom))] flex items-center justify-around select-none shadow-2xl">
-      {navItems.map((item) => {
-        const Icon = item.icon;
-        const isActive = selectedCategory === item.id;
-        return (
+    <>
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/90 backdrop-blur-xl border-t border-slate-800/90 px-2 pt-2 pb-[max(0.6rem,env(safe-area-inset-bottom))] flex items-center justify-around select-none shadow-2xl">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = selectedCategory === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => onSelectCategory(item.id)}
+              className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-2xl transition-all active:scale-95 ${
+                isActive
+                  ? 'text-white bg-blue-600/30 border border-blue-500/40 shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Icon className={`w-4 h-4 ${isActive ? 'text-blue-400' : 'text-slate-400'}`} />
+              <span className="text-[10px] font-bold tracking-tight">{item.label}</span>
+            </button>
+          );
+        })}
+
+        {!isInstalled && (
           <button
-            key={item.id}
-            onClick={() => onSelectCategory(item.id)}
-            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-2xl transition-all active:scale-95 ${
-              isActive
-                ? 'text-white bg-blue-600/30 border border-blue-500/40 shadow-xs'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
+            onClick={handleInstallClick}
+            className="flex flex-col items-center gap-1 py-1 px-2 rounded-2xl text-blue-400 hover:text-blue-300 transition-all active:scale-95"
+            title="Install Link Hub di HP"
           >
-            <Icon className={`w-4 h-4 ${isActive ? 'text-blue-400' : 'text-slate-400'}`} />
-            <span className="text-[10px] font-bold tracking-tight">{item.label}</span>
+            <Download className="w-4 h-4 text-blue-400 animate-bounce" />
+            <span className="text-[10px] font-bold tracking-tight text-blue-300">Install</span>
           </button>
-        );
-      })}
+        )}
 
-      <button
-        onClick={onOpenGasCenter}
-        className="flex flex-col items-center gap-1 py-1 px-3 rounded-2xl text-slate-400 hover:text-slate-200 transition-all active:scale-95"
-      >
-        <Database className="w-4 h-4 text-sky-400" />
-        <span className="text-[10px] font-bold tracking-tight text-sky-300">GAS</span>
-      </button>
+        <button
+          onClick={onOpenGasCenter}
+          className="flex flex-col items-center gap-1 py-1 px-2.5 rounded-2xl text-slate-400 hover:text-slate-200 transition-all active:scale-95"
+        >
+          <Database className="w-4 h-4 text-sky-400" />
+          <span className="text-[10px] font-bold tracking-tight text-sky-300">GAS</span>
+        </button>
 
-      <button
-        onClick={onOpenAdmin}
-        className="flex flex-col items-center gap-1 py-1 px-3 rounded-2xl text-slate-400 hover:text-slate-200 transition-all active:scale-95"
-      >
-        <ShieldCheck className="w-4 h-4 text-amber-400" />
-        <span className="text-[10px] font-bold tracking-tight text-amber-300">Admin</span>
-      </button>
-    </nav>
+        <button
+          onClick={onOpenAdmin}
+          className="flex flex-col items-center gap-1 py-1 px-2.5 rounded-2xl text-slate-400 hover:text-slate-200 transition-all active:scale-95"
+        >
+          <ShieldCheck className="w-4 h-4 text-amber-400" />
+          <span className="text-[10px] font-bold tracking-tight text-amber-300">Admin</span>
+        </button>
+      </nav>
+
+      <PWAInstallModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+    </>
   );
 };

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Logo153 } from './Logo153';
 import { Role } from '../types';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -190,6 +191,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <ExternalLink className="w-4 h-4 text-emerald-400 shrink-0" />
           {!collapsed && <span className="truncate">Monitoring Stock PP1</span>}
         </a>
+
+        {/* PWA Install Button in Sidebar */}
+        <div className={collapsed ? 'px-1' : ''}>
+          <PWAInstallButton variant="sidebar" />
+        </div>
 
         <button
           onClick={() => {

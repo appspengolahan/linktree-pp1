@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Role, GasConfig } from '../types';
 import { Logo153 } from './Logo153';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
   currentRole: Role;
@@ -144,6 +145,9 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden md:inline">GAS Center</span>
             </button>
 
+            {/* Install PWA on PC/Mobile */}
+            <PWAInstallButton variant="header" />
+
             {/* Admin */}
             <button
               onClick={onOpenAdmin}
@@ -157,6 +161,9 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Mobile Right Controls: Compact & Touch-Friendly */}
           <div className="flex sm:hidden items-center gap-1.5 shrink-0">
+            {/* Mobile PWA Install */}
+            <PWAInstallButton variant="compact" />
+
             {/* Mobile RBAC Menu Button */}
             <button
               onClick={onOpenRbac}
@@ -183,51 +190,58 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Mobile Action Dropdown Popup */}
         {isMobileMenuOpen && (
-          <div className="sm:hidden mt-2 pt-2 border-t border-slate-800 grid grid-cols-4 gap-1.5 animate-in fade-in slide-in-from-top-1 duration-150">
-            <button
-              onClick={() => {
-                onOpenRbac();
-                setIsMobileMenuOpen(false);
-              }}
-              className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl bg-slate-800 text-[10px] font-bold text-blue-300 active:bg-slate-700"
-            >
-              <UserCheck className="w-3.5 h-3.5 text-blue-400" />
-              <span>Menu RBAC</span>
-            </button>
+          <div className="sm:hidden mt-2 pt-2 border-t border-slate-800 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1 duration-150">
+            <div className="grid grid-cols-4 gap-1.5">
+              <button
+                onClick={() => {
+                  onOpenRbac();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl bg-slate-800 text-[10px] font-bold text-blue-300 active:bg-slate-700"
+              >
+                <UserCheck className="w-3.5 h-3.5 text-blue-400" />
+                <span>Menu RBAC</span>
+              </button>
 
-            <button
-              onClick={() => {
-                onRefresh();
-                setIsMobileMenuOpen(false);
-              }}
-              disabled={isRefreshing}
-              className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl bg-slate-800 text-[10px] font-semibold text-slate-200 active:bg-slate-700"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-blue-400' : ''}`} />
-              <span>Refresh</span>
-            </button>
+              <button
+                onClick={() => {
+                  onRefresh();
+                  setIsMobileMenuOpen(false);
+                }}
+                disabled={isRefreshing}
+                className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl bg-slate-800 text-[10px] font-semibold text-slate-200 active:bg-slate-700"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-blue-400' : ''}`} />
+                <span>Refresh</span>
+              </button>
 
-            <button
-              onClick={() => {
-                onOpenGasCenter();
-                setIsMobileMenuOpen(false);
-              }}
-              className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl bg-slate-800 text-[10px] font-semibold text-sky-400 active:bg-slate-700"
-            >
-              <Database className="w-3.5 h-3.5" />
-              <span>GAS API</span>
-            </button>
+              <button
+                onClick={() => {
+                  onOpenGasCenter();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl bg-slate-800 text-[10px] font-semibold text-sky-400 active:bg-slate-700"
+              >
+                <Database className="w-3.5 h-3.5" />
+                <span>GAS API</span>
+              </button>
 
-            <button
-              onClick={() => {
-                onOpenAdmin();
-                setIsMobileMenuOpen(false);
-              }}
-              className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl bg-blue-600 text-[10px] font-bold text-white active:bg-blue-700"
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Admin</span>
-            </button>
+              <button
+                onClick={() => {
+                  onOpenAdmin();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl bg-blue-600 text-[10px] font-bold text-white active:bg-blue-700"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Admin</span>
+              </button>
+            </div>
+
+            {/* Quick Install Bar in Mobile Dropdown */}
+            <div className="pt-1 border-t border-slate-800/80">
+              <PWAInstallButton variant="sidebar" />
+            </div>
           </div>
         )}
 

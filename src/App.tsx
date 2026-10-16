@@ -52,6 +52,8 @@ import { StaffAuthModal } from './components/StaffAuthModal';
 import { StaffEditLinkModal } from './components/StaffEditLinkModal';
 import { BottomNav } from './components/BottomNav';
 import { Logo153 } from './components/Logo153';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
+import { OfflineIndicator } from './components/OfflineIndicator';
 
 export default function App() {
   // Core State
@@ -743,6 +745,10 @@ export default function App() {
           <span>{toastMessage}</span>
         </div>
       )}
+
+      {/* 11. PWA Installation Floating Banner & Offline Connectivity Indicator */}
+      <PWAInstallBanner />
+      <OfflineIndicator />
     </div>
   );
 }
