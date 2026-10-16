@@ -192,7 +192,23 @@ export default function App() {
   }, [links]);
 
   const structuredLinks = useMemo(() => {
-    const activeLinks = links.filter((l) => String(l.aktif).toUpperCase() === 'TRUE');
+    const activeStaffAllowedIds = activeStaff ? activeStaff.allowedLinkIds || [] : [];
+
+    // Tautan yang tampil:
+    // 1. Pengunjung publik hanya melihat tautan dengan aktif === TRUE
+    // 2. Staf yang sedang login juga dapat melihat tautan / anak tautan yang diizinkan untuknya meskipun disembunyikan
+    const visibleLinks = links.filter((l) => {
+      const isAktif = String(l.aktif).toUpperCase() === 'TRUE';
+      if (isAktif) return true;
+      if (activeStaffAllowedIds.includes(l.id)) return true;
+      if (l.tipe === 'Grup') {
+        const hasAuthorizedChild = links.some(
+          (c) => c.parentId === l.id && activeStaffAllowedIds.includes(c.id)
+        );
+        if (hasAuthorizedChild) return true;
+      }
+      return false;
+    });
 
     const query = searchQuery.toLowerCase().trim();
     const matchesSearch = (item: LinkItem) => {
@@ -216,14 +232,14 @@ export default function App() {
     };
 
     const childrenByParent: Record<string, LinkItem[]> = {};
-    activeLinks.forEach((l) => {
+    visibleLinks.forEach((l) => {
       if (l.parentId) {
         if (!childrenByParent[l.parentId]) childrenByParent[l.parentId] = [];
         childrenByParent[l.parentId].push(l);
       }
     });
 
-    const topLevel = activeLinks.filter((l) => !l.parentId);
+    const topLevel = visibleLinks.filter((l) => !l.parentId);
 
     const prepared = topLevel.map((item) => {
       if (item.tipe === 'Grup') {
@@ -255,7 +271,7 @@ export default function App() {
       }
       return matchesSearch(item) && matchesCategory(item) && matchesRole(item);
     });
-  }, [links, searchQuery, selectedCategory, filterByRoleOnly, currentRole]);
+  }, [links, searchQuery, selectedCategory, filterByRoleOnly, currentRole, activeStaff]);
 
   const pinnedLinks = useMemo(() => {
     return structuredLinks.filter((l) => String(l.pinned).toUpperCase() === 'TRUE' && l.tipe !== 'Grup');
