@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { X, Edit3, CheckCircle, ExternalLink, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { LinkItem, StaffMember } from '../types';
-import { updateLinkByStaff } from '../services/storage';
+import { updateLinkByStaff, getGasConfig } from '../services/storage';
+import { pushGasLink } from '../services/gasApi';
 
 interface StaffEditLinkModalProps {
   isOpen: boolean;
@@ -47,6 +48,23 @@ export const StaffEditLinkModal: React.FC<StaffEditLinkModalProps> = ({
 
     if (res.success) {
       showToast(res.message);
+
+      const cfg = getGasConfig();
+      if (cfg.webAppUrl) {
+        const updatedItem: LinkItem = {
+          ...link,
+          label,
+          url: link.tipe === 'Grup' ? '' : url,
+          deskripsi,
+          aktif,
+        };
+        pushGasLink(cfg.webAppUrl, updatedItem, cfg.adminPasscode).then((pushRes) => {
+          if (pushRes.success) {
+            showToast('Perubahan staf otomatis disinkronkan ke Google Sheets!');
+          }
+        }).catch(() => {});
+      }
+
       onSaved();
       onClose();
     } else {

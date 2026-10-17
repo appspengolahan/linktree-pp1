@@ -38,7 +38,7 @@ import {
   setActiveStaffSession,
   canStaffEditLink,
 } from './services/storage';
-import { fetchGasLinks } from './services/gasApi';
+import { fetchGasLinks, postGasRecordClick } from './services/gasApi';
 import { isLinkRelevantForRole, ROLE_PERMISSIONS } from './services/rbac';
 
 import { Header } from './components/Header';
@@ -171,6 +171,9 @@ export default function App() {
 
   const handleClickLink = (id: string) => {
     recordLocalClick(id);
+    if (gasConfig.webAppUrl) {
+      postGasRecordClick(gasConfig.webAppUrl, id);
+    }
     setLinks((prev) =>
       prev.map((l) => (l.id === id ? { ...l, klik: (l.klik || 0) + 1 } : l))
     );
@@ -304,8 +307,6 @@ export default function App() {
         onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
         gasConfig={gasConfig}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
         onToggleSidebarMobile={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
       />
 
@@ -391,12 +392,9 @@ export default function App() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 mb-1.5">
+                <div className="flex items-center justify-center sm:justify-start mb-1.5">
                   <span className="text-[10px] sm:text-xs font-bold tracking-wider text-blue-400 uppercase">
-                    Divisi Produksi I · PT Batu Karang
-                  </span>
-                  <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    KODE 153
+                    DIVISI PRODUKSI I . PT BATU KARANG
                   </span>
                 </div>
 
@@ -448,6 +446,46 @@ export default function App() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Kolom Pencarian (Search Bar) di Bawah Banner Utama */}
+          <div className="mb-4 sm:mb-6">
+            <div className="relative flex items-center bg-white rounded-2xl border border-slate-200/90 shadow-xs hover:border-slate-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all p-1.5 sm:p-2">
+              <div className="pl-2.5 sm:pl-3.5 pr-2.5 text-slate-400 flex items-center pointer-events-none">
+                <Search className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 shrink-0" />
+              </div>
+              <input
+                type="text"
+                placeholder="Cari tautan, dokumen operasional, SOP, formulir..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-transparent text-xs sm:text-sm text-slate-800 placeholder-slate-400 font-medium focus:outline-none py-1.5 sm:py-2 pr-2"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="px-2.5 py-1 text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors shrink-0 flex items-center gap-1 cursor-pointer"
+                  title="Hapus pencarian"
+                >
+                  <span className="text-sm font-bold leading-none">✕</span>
+                  <span className="hidden sm:inline text-[11px]">Hapus</span>
+                </button>
+              )}
+            </div>
+
+            {searchQuery && (
+              <div className="mt-2 flex items-center justify-between text-xs text-slate-500 px-2 animate-in fade-in duration-150">
+                <span>
+                  Ditemukan <strong className="text-slate-900 font-bold">{structuredLinks.length}</strong> tautan untuk pencarian "<span className="text-blue-600 font-semibold">{searchQuery}</span>"
+                </span>
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-blue-600 font-bold hover:underline cursor-pointer"
+                >
+                  Reset Pencarian
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Quick Shortcuts Bar (Mobile Friendly Cards) */}
@@ -533,18 +571,6 @@ export default function App() {
                 );
               })}
             </div>
-
-            {searchQuery && (
-              <div className="mt-2 flex items-center justify-between text-xs text-slate-500 px-1">
-                <span>Ditemukan {structuredLinks.length} hasil untuk "{searchQuery}"</span>
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="text-blue-600 font-bold hover:underline"
-                >
-                  Reset
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Section A: Pinned Items */}
@@ -730,12 +756,14 @@ export default function App() {
         isOpen={isGasCenterOpen}
         onClose={() => setIsGasCenterOpen(false)}
         gasConfig={gasConfig}
+        allLinks={links}
         onConfigUpdated={(cfg) => {
           setGasConfig(cfg);
           showToast('Konfigurasi GAS berhasil diperbarui.');
         }}
         onTriggerSync={handleRefresh}
         isSyncing={isRefreshing}
+        showToast={showToast}
       />
 
       {/* 10. Toast Notification */}

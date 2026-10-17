@@ -122,14 +122,198 @@ export async function fetchGasStats(url: string, token: string): Promise<{ succe
 }
 
 /**
+ * Kirim / Simpan sebuah tautan langsung ke Google Spreadsheet via GAS (Push Single Link)
+ */
+export async function pushGasLink(
+  url: string,
+  link: Partial<LinkItem>,
+  passcode: string = 'bkr153'
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  if (!url) return { success: false, error: 'URL GAS belum dikonfigurasi' };
+
+  try {
+    // Coba dengan POST terlebih dahulu
+    const payload = {
+      action: 'saveLink',
+      link,
+      passcode,
+    };
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
+      body: JSON.stringify(payload),
+      redirect: 'follow',
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      if (json && (json.success || json.ok)) {
+        return { success: true, id: json.id };
+      }
+    }
+
+    // Fallback ke GET jika POST terhalang redirect/CORS
+    const fallbackUrl = new URL(url);
+    fallbackUrl.searchParams.set('action', 'saveLink');
+    fallbackUrl.searchParams.set('passcode', passcode);
+    fallbackUrl.searchParams.set('link', JSON.stringify(link));
+
+    const getRes = await fetch(fallbackUrl.toString());
+    if (getRes.ok) {
+      const getJson = await getRes.json();
+      if (getJson && (getJson.success || getJson.ok)) {
+        return { success: true, id: getJson.id };
+      }
+    }
+
+    return { success: false, error: 'Gagal memperbarui data di spreadsheet' };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * Hapus sebuah tautan dari Google Spreadsheet via GAS (Push Delete)
+ */
+export async function pushGasDeleteLink(
+  url: string,
+  id: string,
+  passcode: string = 'bkr153'
+): Promise<{ success: boolean; error?: string }> {
+  if (!url) return { success: false, error: 'URL GAS belum dikonfigurasi' };
+
+  try {
+    const payload = {
+      action: 'deleteLink',
+      id,
+      passcode,
+    };
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
+      body: JSON.stringify(payload),
+      redirect: 'follow',
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      if (json && (json.success || json.ok)) {
+        return { success: true };
+      }
+    }
+
+    // Fallback ke GET
+    const fallbackUrl = new URL(url);
+    fallbackUrl.searchParams.set('action', 'deleteLink');
+    fallbackUrl.searchParams.set('id', id);
+    fallbackUrl.searchParams.set('passcode', passcode);
+
+    const getRes = await fetch(fallbackUrl.toString());
+    if (getRes.ok) {
+      const getJson = await getRes.json();
+      if (getJson && (getJson.success || getJson.ok)) {
+        return { success: true };
+      }
+    }
+
+    return { success: false, error: 'Gagal menghapus baris di spreadsheet' };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * Unggah seluruh daftar tautan lokal ke Google Spreadsheet sekaligus (Push All / Seed)
+ */
+export async function pushGasAllLinks(
+  url: string,
+  links: LinkItem[],
+  passcode: string = 'bkr153'
+): Promise<{ success: boolean; count?: number; error?: string }> {
+  if (!url) return { success: false, error: 'URL GAS belum dikonfigurasi' };
+
+  try {
+    const payload = {
+      action: 'saveAllLinks',
+      links,
+      passcode,
+    };
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
+      body: JSON.stringify(payload),
+      redirect: 'follow',
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      if (json && (json.success || json.ok)) {
+        return { success: true, count: json.count || links.length };
+      }
+    }
+
+    // Fallback jika POST bermasalah
+    const fallbackUrl = new URL(url);
+    fallbackUrl.searchParams.set('action', 'saveAllLinks');
+    fallbackUrl.searchParams.set('passcode', passcode);
+    fallbackUrl.searchParams.set('data', JSON.stringify(links));
+
+    const getRes = await fetch(fallbackUrl.toString());
+    if (getRes.ok) {
+      const getJson = await getRes.json();
+      if (getJson && (getJson.success || getJson.ok)) {
+        return { success: true, count: getJson.count || links.length };
+      }
+    }
+
+    return { success: false, error: 'Gagal mengunggah data ke spreadsheet' };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * Catat klik tautan ke spreadsheet (fire and forget)
+ */
+export function postGasRecordClick(url: string, id: string): void {
+  if (!url) return;
+  try {
+    // Gunakan Image ping atau fetch GET untuk menghindari CORS issue
+    const targetUrl = new URL(url);
+    targetUrl.searchParams.set('action', 'recordClick');
+    targetUrl.searchParams.set('id', id);
+    fetch(targetUrl.toString(), { mode: 'no-cors' }).catch(() => {});
+  } catch {
+    // Ignore error
+  }
+}
+
+/**
  * Hasilkan kode Code.gs yang sudah dioptimalkan untuk Google Spreadsheet PT Batu Karang
  */
 export function generateProductionCodeGs(): string {
   return `/**
  * ============================================================
  * PT BATU KARANG — DIVISI PRODUKSI I
- * HEADLESS REST WEB APP & GOOGLE SPREADSHEET BACKEND
+ * HEADLESS REST WEB APP & GOOGLE SPREADSHEET BACKEND (TWO-WAY SYNC)
  * ============================================================
+ *
+ * FITUR DUA ARAH (TWO-WAY SYNC):
+ * - PULL: Mengambil data real-time dari sheet ke web app secara instan
+ * - PUSH: Menyimpan, memperbarui, & menghapus baris di sheet langsung dari web app
+ * - CLICK & VISIT TRACKING: Mencatat statistik interaksi real-time ke sheet
  *
  * CARA DEPLOY:
  * 1. Buka Google Spreadsheet Divisi Produksi I.
@@ -138,14 +322,13 @@ export function generateProductionCodeGs(): string {
  * 4. Buka Project Settings (ikon roda gigi) > Script Properties > Add script property:
  *      Property : ADMIN_PASSCODE
  *      Value    : (passcode pilihan Anda, misal: bkr153)
- * 5. Jalankan fungsi "authorizeApp" sekali dari editor untuk otorisasi izin Sheets.
- * 6. (Opsional) Jalankan "seedInitialData" untuk mengisi struktur link & grup awal.
- * 7. Klik Deploy > New deployment:
+ * 5. Jalankan fungsi "authorizeApp" sekali dari toolbar editor untuk menyetujui izin Sheets.
+ * 6. Klik Deploy > New deployment:
  *      - Select type  : Web app
- *      - Description  : Production Link Hub API v1
+ *      - Description  : Two-Way Sync API PT Batu Karang v2
  *      - Execute as   : Me (divisi1.BKR@gmail.com)
- *      - Who has access: Anyone (agar app frontend bisa membaca data)
- * 8. Salin "Web app URL" (akhiran /exec) dan masukkan ke menu "Headless GAS Center" di Web App.
+ *      - Who has access: Anyone (agar app frontend bisa membaca dan menulis data)
+ * 7. Salin "Web app URL" (akhiran /exec) dan tempelkan ke menu "Integrasi GAS" di Web App.
  * ============================================================
  */
 
@@ -167,8 +350,6 @@ const HEADERS = [
 
 const STATISTIK_HEADERS = ['Tanggal', 'Kunjungan'];
 const ADMIN_TOKEN_TTL_SECONDS = 6 * 60 * 60; // 6 Jam
-const PUBLIC_LINKS_CACHE_KEY = 'bkr_public_links_v2';
-const PUBLIC_LINKS_CACHE_TTL = 120; // 2 Menit
 
 // ------------------------------------------------------------
 // REST API ENDPOINTS: doGet & doPost
@@ -178,30 +359,64 @@ function doGet(e) {
   try {
     const action = (e && e.parameter && e.parameter.action) || 'getPublicLinks';
     const token = (e && e.parameter && e.parameter.token) || '';
+    const passcode = (e && e.parameter && e.parameter.passcode) || '';
 
     // Ping check
     if (action === 'ping') {
-      return jsonResponse_({ ok: true, message: 'PT Batu Karang GAS API Online', timestamp: new Date().toISOString() });
+      return jsonResponse_({ ok: true, message: 'PT Batu Karang GAS API Online (Two-Way Sync)', timestamp: new Date().toISOString() });
     }
 
-    // Ambil data publik
+    // Ambil data publik (Pull)
     if (action === 'getPublicLinks') {
       const links = getPublicLinksArray_();
       return jsonResponse_({ ok: true, links: links });
     }
 
+    // Catat klik (Public)
+    if (action === 'recordClick') {
+      const id = (e && e.parameter && e.parameter.id) || '';
+      if (id) recordClick_(id);
+      return jsonResponse_({ ok: true });
+    }
+
     // Ambil statistik (admin only)
     if (action === 'getStatistik') {
-      checkToken_(token);
+      checkAuth_({ token: token, passcode: passcode });
       const stats = getStatistik_();
       return jsonResponse_(stats);
     }
 
     // Ambil data admin lengkap (flat links + groups)
     if (action === 'getAdminData') {
-      checkToken_(token);
+      checkAuth_({ token: token, passcode: passcode });
       const data = getAdminData_();
       return jsonResponse_(data);
+    }
+
+    // Simpan link via GET (fallback jika POST diblokir CORS)
+    if (action === 'saveLink') {
+      checkAuth_({ token: token, passcode: passcode });
+      const rawLink = e.parameter.link;
+      const linkObj = typeof rawLink === 'string' ? JSON.parse(rawLink) : rawLink;
+      const res = saveLink_(linkObj);
+      return jsonResponse_(res);
+    }
+
+    // Hapus link via GET
+    if (action === 'deleteLink') {
+      checkAuth_({ token: token, passcode: passcode });
+      const id = e.parameter.id;
+      const res = deleteLink_(id);
+      return jsonResponse_(res);
+    }
+
+    // Simpan semua link sekaligus (Push All) via GET
+    if (action === 'saveAllLinks') {
+      checkAuth_({ token: token, passcode: passcode });
+      const rawData = e.parameter.data;
+      const linksArr = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+      const res = saveAllLinks_(linksArr);
+      return jsonResponse_(res);
     }
 
     return jsonResponse_({ ok: false, message: 'Aksi tidak dikenal: ' + action });
@@ -214,13 +429,16 @@ function doPost(e) {
   try {
     let payload = {};
     if (e && e.postData && e.postData.contents) {
-      payload = JSON.parse(e.postData.contents);
+      try {
+        payload = JSON.parse(e.postData.contents);
+      } catch (ex) {
+        payload = e.parameter || {};
+      }
     } else if (e && e.parameter) {
       payload = e.parameter;
     }
 
     const action = payload.action || '';
-    const token = payload.token || '';
 
     // Verifikasi passcode admin
     if (action === 'verifyPasscode') {
@@ -238,15 +456,20 @@ function doPost(e) {
     // Record click link/grup (publik, fire-and-forget)
     if (action === 'recordClick') {
       const id = payload.id;
-      recordClick_(id);
+      if (id) recordClick_(id);
       return jsonResponse_({ ok: true });
     }
 
-    // Admin Privileged Operations
-    checkToken_(token);
+    // Admin Privileged Operations (Push to Sheet)
+    checkAuth_(payload);
 
     if (action === 'saveLink') {
       const res = saveLink_(payload.link);
+      return jsonResponse_(res);
+    }
+
+    if (action === 'saveAllLinks') {
+      const res = saveAllLinks_(payload.links);
       return jsonResponse_(res);
     }
 
@@ -260,7 +483,7 @@ function doPost(e) {
       return jsonResponse_(res);
     }
 
-    return jsonResponse_({ ok: false, message: 'Aksi POST tidak dikenal' });
+    return jsonResponse_({ ok: false, message: 'Aksi POST tidak dikenal: ' + action });
   } catch (err) {
     return jsonResponse_({ ok: false, error: err.message });
   }
@@ -287,6 +510,25 @@ function verifyAdminPasscode_(passcode) {
   const token = Utilities.getUuid();
   CacheService.getScriptCache().put('admintoken_' + token, 'valid', ADMIN_TOKEN_TTL_SECONDS);
   return { success: true, token: token };
+}
+
+function checkAuth_(payload) {
+  const token = (payload && payload.token) || '';
+  const passcode = (payload && payload.passcode) || '';
+
+  if (passcode) {
+    const stored = getStoredPasscode_();
+    if (String(passcode).trim() === String(stored).trim()) {
+      return true;
+    }
+  }
+
+  if (token) {
+    const cached = CacheService.getScriptCache().get('admintoken_' + token);
+    if (cached === 'valid') return true;
+  }
+
+  throw new Error('Otorisasi gagal: Passcode atau token admin tidak valid.');
 }
 
 function checkToken_(token) {
@@ -434,6 +676,40 @@ function saveLink_(link) {
 
   sheet.appendRow(rowValues);
   return { success: true, id: id };
+}
+
+function saveAllLinks_(links) {
+  const sheet = getSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.getRange(2, 1, lastRow - 1, HEADERS.length).clearContent();
+  }
+  if (!links || !links.length) return { success: true, count: 0 };
+
+  const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm');
+  const rows = links.map(function(l) {
+    const tipe = (l && l.tipe === 'Grup') ? 'Grup' : 'Link';
+    const parentId = tipe === 'Grup' ? '' : ((l && l.parentId) || '');
+    const id = (l && l.id) || ((tipe === 'Grup' ? 'GRP-' : 'LNK-') + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyMMddHHmmss'));
+    return [
+      id,
+      l.label || '',
+      tipe === 'Grup' ? '' : (l.url || ''),
+      l.icon || (tipe === 'Grup' ? '🗂️' : '🔗'),
+      l.kategori || 'Operasional & Lini',
+      l.deskripsi || '',
+      Number(l.urutan) || 10,
+      String(l.aktif).toUpperCase() === 'TRUE' ? 'TRUE' : 'FALSE',
+      String(l.pinned).toUpperCase() === 'TRUE' ? 'TRUE' : 'FALSE',
+      Number(l.klik) || 0,
+      nowStr,
+      tipe,
+      parentId
+    ];
+  });
+
+  sheet.getRange(2, 1, rows.length, HEADERS.length).setValues(rows);
+  return { success: true, count: rows.length };
 }
 
 function deleteLink_(id) {

@@ -4,7 +4,6 @@ import {
   Database,
   ShieldCheck,
   UserCheck,
-  Search,
   Menu,
   MoreVertical,
   SlidersHorizontal,
@@ -23,8 +22,6 @@ interface HeaderProps {
   onRefresh: () => void;
   isRefreshing: boolean;
   gasConfig: GasConfig;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
   onToggleSidebarMobile: () => void;
 }
 
@@ -37,8 +34,6 @@ export const Header: React.FC<HeaderProps> = ({
   onRefresh,
   isRefreshing,
   gasConfig,
-  searchQuery,
-  onSearchChange,
   onToggleSidebarMobile,
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -75,27 +70,8 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Zone 2: Desktop Search & Live Status Indicator */}
-          <div className="hidden md:flex flex-1 max-w-md items-center gap-2.5 mx-4">
-            <div className="relative w-full">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Cari tautan, dokumen, SOP..."
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                className="w-full bg-slate-800/90 border border-slate-700/80 rounded-xl pl-9 pr-4 py-1.5 text-xs text-slate-200 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => onSearchChange('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
+          {/* Zone 2: Live Status Indicator */}
+          <div className="hidden sm:flex items-center gap-2">
             <div
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700/80 shrink-0"
               title={gasConfig.webAppUrl ? 'Terhubung ke Google Sheets (GAS Live)' : 'Offline LocalStorage 0.01s'}
@@ -245,27 +221,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         )}
 
-        {/* Mobile Search Input */}
-        <div className="mt-2 md:hidden">
-          <div className="relative w-full">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Cari tautan, dokumen, atau SOP..."
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full bg-slate-800/90 border border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-400 focus:outline-none focus:border-blue-500"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => onSearchChange('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        </div>
+
       </div>
     </header>
   );

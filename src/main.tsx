@@ -1,11 +1,13 @@
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
-import { registerSW } from 'virtual:pwa-register';
-
-// Register PWA service worker with auto-update
+// Register PWA service worker with auto-update in production
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator && import.meta.env.PROD) {
-  registerSW({ immediate: true });
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.warn('PWA service worker registration notice:', err);
+    });
+  });
 }
 
 createRoot(document.getElementById('root')!).render(<App />);

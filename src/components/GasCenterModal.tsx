@@ -13,31 +13,39 @@ import {
   ShieldCheck,
   Clock,
   Sparkles,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  RefreshCw,
 } from 'lucide-react';
-import { GasConfig } from '../types';
+import { GasConfig, LinkItem } from '../types';
 import { saveGasConfig } from '../services/storage';
-import { pingGasEndpoint, generateProductionCodeGs } from '../services/gasApi';
+import { pingGasEndpoint, generateProductionCodeGs, pushGasAllLinks } from '../services/gasApi';
 
 interface GasCenterModalProps {
   isOpen: boolean;
   onClose: () => void;
   gasConfig: GasConfig;
+  allLinks?: LinkItem[];
   onConfigUpdated: (config: GasConfig) => void;
   onTriggerSync: () => void;
   isSyncing: boolean;
+  showToast?: (msg: string) => void;
 }
 
 export const GasCenterModal: React.FC<GasCenterModalProps> = ({
   isOpen,
   onClose,
   gasConfig,
+  allLinks = [],
   onConfigUpdated,
   onTriggerSync,
   isSyncing,
+  showToast,
 }) => {
   const [activeTab, setActiveTab] = useState<'config' | 'code' | 'guide'>('config');
   const [urlInput, setUrlInput] = useState(gasConfig.webAppUrl || '');
   const [passcodeInput, setPasscodeInput] = useState(gasConfig.adminPasscode || 'bkr153');
+  const [isPushing, setIsPushing] = useState(false);
 
   const [pingStatus, setPingStatus] = useState<{
     testing: boolean;
@@ -76,6 +84,28 @@ export const GasCenterModal: React.FC<GasCenterModalProps> = ({
       };
       saveGasConfig(updated);
       onConfigUpdated(updated);
+    }
+  };
+
+  const handlePushAll = async () => {
+    const targetUrl = urlInput.trim() || gasConfig.webAppUrl;
+    if (!targetUrl) {
+      alert('Masukkan Web App URL terlebih dahulu.');
+      return;
+    }
+    if (!window.confirm(`Unggah seluruh daftar ${allLinks.length} tautan dari Web App ke Google Spreadsheet? Seluruh baris di sheet "LinkTree" akan disinkronkan.`)) {
+      return;
+    }
+
+    setIsPushing(true);
+    const res = await pushGasAllLinks(targetUrl, allLinks, passcodeInput.trim() || gasConfig.adminPasscode);
+    setIsPushing(false);
+
+    if (res.success) {
+      if (showToast) showToast(`Berhasil mengunggah ${res.count || allLinks.length} tautan ke Google Sheets!`);
+      else alert(`Berhasil mengunggah ${res.count || allLinks.length} tautan ke Google Sheets!`);
+    } else {
+      alert(`Gagal mengunggah data: ${res.error || 'Terjadi kesalahan'}`);
     }
   };
 
@@ -161,34 +191,78 @@ export const GasCenterModal: React.FC<GasCenterModalProps> = ({
           {/* TAB 1: CONFIGURATION */}
           {activeTab === 'config' && (
             <div className="space-y-6">
-              {/* Status Box */}
-              <div className="bg-slate-900 rounded-2xl p-4 sm:p-5 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-slate-800 shadow-sm">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="relative flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                    </span>
-                    <span className="font-bold text-sm">
-                      {gasConfig.webAppUrl ? 'Endpoint Terpasang' : 'Mode Offline-First Standalone'}
-                    </span>
+              {/* Status Box & Two-Way Sync Action Center */}
+              <div className="bg-slate-900 rounded-2xl p-4 sm:p-5 text-white flex flex-col gap-4 border border-slate-800 shadow-sm">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                      </span>
+                      <span className="font-bold text-sm">
+                        {gasConfig.webAppUrl ? 'Two-Way Sync Aktif' : 'Mode Standalone (Belum Terhubung)'}
+                      </span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                        2-Way Sync
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      {gasConfig.webAppUrl
+                        ? `Terhubung ke Google Apps Script: ${gasConfig.webAppUrl.slice(0, 48)}...`
+                        : 'Web App mendukung sinkronisasi dua arah penuh (Tarik & Unggah). Masukkan Web App URL di bawah ini untuk mengaktifkan.'}
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-400">
-                    {gasConfig.webAppUrl
-                      ? `Terhubung ke Google Apps Script: ${gasConfig.webAppUrl.slice(0, 48)}...`
-                      : 'Data berjalan dengan cache super cepat (0.01 detik) di browser. Masukkan Web App URL di bawah untuk sinkronisasi ke Google Sheets.'}
-                  </p>
+
+                  {/* Two-Way Action Buttons */}
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={onTriggerSync}
+                      disabled={isSyncing || !gasConfig.webAppUrl}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-colors"
+                      title="Ambil data terkini dari baris Google Sheets"
+                    >
+                      <ArrowDownToLine className={`w-3.5 h-3.5 ${isSyncing ? 'animate-bounce' : ''}`} />
+                      <span>{isSyncing ? 'Menarik...' : '⬇️ Tarik dari Sheets'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handlePushAll}
+                      disabled={isPushing || !(urlInput.trim() || gasConfig.webAppUrl)}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-colors"
+                      title="Kirim seluruh daftar tautan lokal saat ini ke Google Sheets"
+                    >
+                      <ArrowUpFromLine className={`w-3.5 h-3.5 ${isPushing ? 'animate-bounce' : ''}`} />
+                      <span>{isPushing ? 'Mengunggah...' : '⬆️ Unggah ke Sheets'}</span>
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={onTriggerSync}
-                    disabled={isSyncing || !gasConfig.webAppUrl}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-colors"
-                  >
-                    <Zap className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                    <span>{isSyncing ? 'Menyinkronkan...' : 'Sinkronkan Sekarang'}</span>
-                  </button>
+                {/* Two-Way Sync Feature Pills */}
+                <div className="pt-3 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
+                  <div className="flex items-start gap-2 text-slate-300 bg-slate-800/60 p-2 rounded-xl border border-slate-700/50">
+                    <span className="text-sm">📥</span>
+                    <div>
+                      <strong className="block text-white font-semibold">Tarik (Pull)</strong>
+                      <span className="text-slate-400">Pembaruan data dari baris Google Sheets ke tampilan aplikasi.</span>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-slate-300 bg-slate-800/60 p-2 rounded-xl border border-slate-700/50">
+                    <span className="text-sm">📤</span>
+                    <div>
+                      <strong className="block text-white font-semibold">Kirim (Push)</strong>
+                      <span className="text-slate-400">Tambah, edit, & hapus otomatis tersimpan langsung ke Google Sheets.</span>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-slate-300 bg-slate-800/60 p-2 rounded-xl border border-slate-700/50">
+                    <span className="text-sm">📊</span>
+                    <div>
+                      <strong className="block text-white font-semibold">Pelacakan Interaksi</strong>
+                      <span className="text-slate-400">Tiap klik staf langsung menginkremen kolom "Klik" di sheet.</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 

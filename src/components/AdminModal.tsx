@@ -38,6 +38,7 @@ import {
   resetStaffPinByAdmin,
   resetAllStaffPinsToDefault,
 } from '../services/storage';
+import { pushGasLink, pushGasDeleteLink } from '../services/gasApi';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -122,6 +123,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     if (res.success) {
       showToast(`${res.newStatus ? '🟢 Ditampilkan di portal' : '⚪ Disembunyikan dari portal'}: "${res.label}"`);
       onDataChanged();
+
+      if (gasConfig.webAppUrl) {
+        pushGasLink(
+          gasConfig.webAppUrl,
+          { ...item, aktif: res.newStatus },
+          gasConfig.adminPasscode
+        ).catch(() => {});
+      }
     }
   };
 
@@ -203,6 +212,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setIsFormOpen(false);
     onDataChanged();
     showToast(editingLink ? 'Tautan berhasil diperbarui.' : 'Tautan baru berhasil disimpan.');
+
+    if (gasConfig.webAppUrl) {
+      pushGasLink(gasConfig.webAppUrl, payload, gasConfig.adminPasscode).then((gasRes) => {
+        if (gasRes.success) {
+          showToast('Data otomatis tersinkronkan ke Google Sheets!');
+        }
+      }).catch(() => {});
+    }
   };
 
   const handleDelete = (id: string, label: string, isGroup: boolean) => {
@@ -216,6 +233,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       deleteStoredLink(id);
       onDataChanged();
       showToast('Data berhasil dihapus.');
+
+      if (gasConfig.webAppUrl) {
+        pushGasDeleteLink(gasConfig.webAppUrl, id, gasConfig.adminPasscode).then((delRes) => {
+          if (delRes.success) {
+            showToast('Baris di Google Sheets berhasil diperbarui.');
+          }
+        }).catch(() => {});
+      }
     }
   };
 
