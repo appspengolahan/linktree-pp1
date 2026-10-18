@@ -43,8 +43,8 @@ export const GroupCard: React.FC<GroupCardProps> = ({
             : canEditStaffGroup
             ? 'border-emerald-300 hover:border-emerald-400 bg-emerald-50/10'
             : isOpen
-            ? 'border-blue-400/90 ring-2 ring-blue-500/10 bg-slate-50/40'
-            : 'border-slate-200/90 hover:border-blue-400/80 hover:bg-slate-50/50'
+            ? 'border-[#0284c7] ring-2 ring-[#0284c7]/15 bg-slate-50/40'
+            : 'border-[#dbe5ed] hover:border-[#0284c7]/70 hover:bg-slate-50/50'
         }`}
       >
         {/* Sisi Kiri: Ikon Grup */}
@@ -55,7 +55,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({
         {/* Bagian Tengah: Label Huruf Kapital + Subtitle Keterangan */}
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight truncate">
+            <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 group-hover:text-[#004771] transition-colors uppercase tracking-tight truncate">
               {group.label}
             </h3>
 

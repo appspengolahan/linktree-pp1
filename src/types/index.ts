@@ -88,3 +88,9 @@ export interface CategoryFilter {
   label: string;
   iconName?: string;
 }
+
+export interface BannerConfig {
+  badge: string;
+  title: string;
+  description: string;
+}

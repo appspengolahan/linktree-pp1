@@ -1,4 +1,4 @@
-import { LinkItem, GasConfig, StatistikData, Role, StaffMember, DEFAULT_STAFF_PIN } from '../types';
+import { LinkItem, GasConfig, StatistikData, Role, StaffMember, DEFAULT_STAFF_PIN, BannerConfig } from '../types';
 import { INITIAL_LINKS, INITIAL_STATISTIK } from './defaultData';
 
 const CACHE_KEY_LINKS = 'bkr_linkhub_cache_v3';
@@ -9,6 +9,7 @@ const CACHE_KEY_SIDEBAR = 'bkr_sidebar_collapsed';
 const CACHE_KEY_VISIT_DATE = 'bkr_last_visit_date_v3';
 const CACHE_KEY_STAFF_LIST = 'bkr_staff_list_v2';
 const CACHE_KEY_ACTIVE_STAFF = 'bkr_active_staff_session';
+const CACHE_KEY_BANNER = 'bkr_banner_config_v1';
 
 // Data Staf Awal Berdasarkan Unit Operasional
 export const INITIAL_STAFF_LIST: StaffMember[] = [
@@ -610,9 +611,40 @@ export function reorderStoredLinks(orderedIds: string[]): boolean {
   return true;
 }
 
+export const DEFAULT_BANNER_CONFIG: BannerConfig = {
+  badge: 'PT. BATU KARANG — 153',
+  title: 'Divisi Produksi I',
+  description: 'Semua tautan penting Divisi Produksi I PT Batu Karang ada di sini — formulir shift, SOP pabrik, kendali mutu (QC), dan kontak resmi.',
+};
+
+export function getStoredBannerConfig(): BannerConfig {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY_BANNER);
+    if (!raw) return DEFAULT_BANNER_CONFIG;
+    const parsed = JSON.parse(raw);
+    return {
+      badge: parsed.badge || DEFAULT_BANNER_CONFIG.badge,
+      title: parsed.title || DEFAULT_BANNER_CONFIG.title,
+      description: parsed.description !== undefined ? parsed.description : DEFAULT_BANNER_CONFIG.description,
+    };
+  } catch {
+    return DEFAULT_BANNER_CONFIG;
+  }
+}
+
+export function saveStoredBannerConfig(config: BannerConfig): void {
+  try {
+    localStorage.setItem(CACHE_KEY_BANNER, JSON.stringify(config));
+  } catch (e) {
+    console.error('Failed to save banner config:', e);
+  }
+}
+
 export function resetToFactoryDefault(): void {
   saveStoredLinks(INITIAL_LINKS);
   saveStoredStats(INITIAL_STATISTIK);
   saveStoredStaffList(INITIAL_STAFF_LIST);
+  saveStoredBannerConfig(DEFAULT_BANNER_CONFIG);
   setActiveStaffSession(null);
 }
+

@@ -47,7 +47,7 @@ export const LinkCard: React.FC<LinkCardProps> = ({
               ? 'border-amber-300/80 hover:border-amber-400 bg-linear-to-r from-amber-50/20 via-white to-white'
               : canEditByStaff
               ? 'border-emerald-300 hover:border-emerald-400 bg-emerald-50/10'
-              : 'border-slate-200/90 hover:border-blue-400/80 hover:bg-slate-50/50'
+              : 'border-[#dbe5ed] hover:border-[#0284c7]/70 hover:bg-slate-50/50'
           }`}
         >
           {/* Sisi Kiri: Ikon Khas Referensi */}
@@ -58,7 +58,7 @@ export const LinkCard: React.FC<LinkCardProps> = ({
           {/* Bagian Tengah: Judul Huruf Kapital + Subtitle Keterangan */}
           <div className="flex flex-col min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 group-hover:text-blue-600 transition-colors uppercase tracking-tight truncate">
+              <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 group-hover:text-[#004771] transition-colors uppercase tracking-tight truncate">
                 {link.label}
               </h3>
 

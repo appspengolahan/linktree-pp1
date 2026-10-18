@@ -11,9 +11,10 @@ import {
   Database,
   ArrowRight,
   Pin,
+  Edit3,
 } from 'lucide-react';
 
-import { LinkItem, Role, GasConfig, StatistikData, StaffMember } from './types';
+import { LinkItem, Role, GasConfig, StatistikData, StaffMember, BannerConfig } from './types';
 import {
   getStoredLinks,
   getStoredStats,
@@ -25,6 +26,8 @@ import {
   recordLocalClick,
   getActiveStaffSession,
   setActiveStaffSession,
+  getStoredBannerConfig,
+  saveStoredBannerConfig,
 } from './services/storage';
 import { fetchGasLinks, postGasRecordClick } from './services/gasApi';
 import { isLinkRelevantForRole } from './services/rbac';
@@ -36,6 +39,7 @@ import { GasCenterModal } from './components/GasCenterModal';
 import { RbacModal } from './components/RbacModal';
 import { StaffAuthModal } from './components/StaffAuthModal';
 import { StaffEditLinkModal } from './components/StaffEditLinkModal';
+import { EditBannerModal } from './components/EditBannerModal';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { OfflineIndicator } from './components/OfflineIndicator';
 
@@ -61,6 +65,8 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
+  const [bannerConfig, setBannerConfig] = useState<BannerConfig>(getStoredBannerConfig());
+  const [isEditBannerOpen, setIsEditBannerOpen] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [adminInitialTab, setAdminInitialTab] = useState<'stats' | 'links' | 'staff'>('stats');
@@ -156,6 +162,11 @@ export default function App() {
     showToast('Sesi staf telah ditutup.');
   };
 
+  const handleUpdateBanner = (newCfg: BannerConfig) => {
+    saveStoredBannerConfig(newCfg);
+    setBannerConfig(newCfg);
+  };
+
   const categories = [
     'Semua',
     'Operasional & Lini',
@@ -248,11 +259,11 @@ export default function App() {
   }, [links, searchQuery, selectedCategory, filterByRoleOnly, currentRole, activeStaff]);
 
   return (
-    <div className="min-h-screen bg-[#f0f4f8] text-slate-900 flex flex-col font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
-      {/* 1. Curved Deep Navy Hero Section (Kompak & Bersih Sesuai Referensi) */}
-      <section className="bg-gradient-to-b from-[#082846] via-[#0b385c] to-[#0d416b] text-white pt-3 pb-8 sm:pb-10 px-4 rounded-b-[36px] sm:rounded-b-[48px] shadow-lg relative overflow-hidden">
+    <div className="min-h-screen bg-[#ebf2f7] text-slate-900 flex flex-col font-sans antialiased selection:bg-sky-100 selection:text-sky-900">
+      {/* 1. Curved Deep Petroleum/Teal-Navy Hero Section (Sesuai Referensi, Kompak & Sejajar) */}
+      <section className="bg-gradient-to-b from-[#003859] via-[#004771] to-[#045586] text-white pt-3.5 pb-6 sm:pb-7 px-4 rounded-b-[32px] sm:rounded-b-[44px] shadow-md relative overflow-hidden">
         {/* Subtle decorative glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-sky-400/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Minimalist Floating Top Utility Bar */}
         <div className="max-w-xl mx-auto flex items-center justify-between text-xs pb-3 mb-3 border-b border-white/10">
@@ -272,6 +283,16 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-1.5">
+            {/* Tombol Ubah Teks Banner Secara Manual */}
+            <button
+              onClick={() => setIsEditBannerOpen(true)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-sky-200 hover:text-white transition-colors text-[11px] font-semibold cursor-pointer"
+              title="Ubah teks banner secara manual"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Ubah Teks</span>
+            </button>
+
             {/* Toggle Cari Tautan (Opsional) */}
             <button
               onClick={() => {
@@ -279,7 +300,7 @@ export default function App() {
                 if (isSearchOpen) setSearchQuery('');
               }}
               className={`p-1.5 rounded-full transition-colors cursor-pointer ${
-                isSearchOpen ? 'bg-white text-blue-950 shadow-xs' : 'bg-white/10 hover:bg-white/20 text-slate-200'
+                isSearchOpen ? 'bg-white text-[#004771] shadow-xs' : 'bg-white/10 hover:bg-white/20 text-slate-200'
               }`}
               title={isSearchOpen ? 'Tutup Pencarian' : 'Cari Tautan...'}
             >
@@ -292,7 +313,7 @@ export default function App() {
               className="flex items-center gap-1 px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-slate-200 transition-colors text-[11px] font-semibold cursor-pointer"
               title="Ganti Peran Hak Akses (RBAC)"
             >
-              <UserCheck className="w-3.5 h-3.5 text-blue-300" />
+              <UserCheck className="w-3.5 h-3.5 text-sky-300" />
               <span>{currentRole}</span>
             </button>
 
@@ -303,13 +324,13 @@ export default function App() {
               className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-slate-200 transition-colors cursor-pointer"
               title="Segarkan data terbaru"
             >
-              <RotateCcw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-blue-300' : ''}`} />
+              <RotateCcw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-sky-300' : ''}`} />
             </button>
 
             {/* Tombol Akses Admin */}
             <button
               onClick={() => setIsAdminOpen(true)}
-              className="flex items-center gap-1 px-3 py-1 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all text-[11px] shadow-2xs cursor-pointer"
+              className="flex items-center gap-1 px-3 py-1 rounded-full bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold transition-all text-[11px] shadow-2xs cursor-pointer"
               title="Panel Kelola & Statistik (Passcode)"
             >
               <ShieldCheck className="w-3.5 h-3.5" />
@@ -318,37 +339,51 @@ export default function App() {
           </div>
         </div>
 
-        {/* Profile Card Header: Logo Lingkaran + Teks Referensi */}
+        {/* Profile Card Header: Logo Sejajar dengan Teks (Kompak & Rendah Sesuai Permintaan) */}
         <div className="max-w-md mx-auto text-center flex flex-col items-center">
-          {/* Logo Avatar Lingkaran Putih di Bagian Tengah Atas */}
-          <div className="relative mb-2.5">
-            <div className="w-20 h-20 sm:w-22 sm:h-22 rounded-full bg-white p-2.5 shadow-xl border-4 border-white/20 flex items-center justify-center">
-              <img
-                src="/logo.svg"
-                alt="Logo 153 PT Batu Karang"
-                className="w-full h-full object-contain"
-              />
+          <div className="flex items-center justify-center gap-3 sm:gap-4 text-left">
+            {/* Logo Avatar Lingkaran Putih */}
+            <div className="relative shrink-0">
+              <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-full bg-white p-1.5 shadow-md border-2 border-white/40 flex items-center justify-center">
+                <img
+                  src="/logo.svg"
+                  alt="Logo 153 PT Batu Karang"
+                  className="w-full h-full object-contain"
+                />
+              </div>
             </div>
+
+            {/* Teks Sejajar: Sub-judul Emas & Judul Utama */}
+            <div className="flex flex-col min-w-0">
+              <p className="text-amber-400 font-bold tracking-wider text-[11px] sm:text-xs uppercase truncate">
+                {bannerConfig.badge}
+              </p>
+              <h1 className="text-lg sm:text-2xl font-black text-white tracking-tight leading-tight truncate">
+                {bannerConfig.title}
+              </h1>
+            </div>
+
+            {/* Tombol Cepat Edit Teks Banner (Pensil) */}
+            <button
+              onClick={() => setIsEditBannerOpen(true)}
+              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-sky-200 hover:text-white transition-colors cursor-pointer shrink-0 ml-0.5"
+              title="Ubah teks banner ini secara manual"
+              aria-label="Ubah Teks Banner"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+            </button>
           </div>
 
-          {/* Subtitle Kuning Emas Huruf Kapital (Identik Referensi) */}
-          <p className="text-amber-400 font-bold tracking-widest text-[11px] sm:text-xs uppercase">
-            PT. BATU KARANG — 153
-          </p>
-
-          {/* Judul Utama Huruf Tebal Putih (Identik Referensi) */}
-          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-1">
-            Divisi Produksi I
-          </h1>
-
-          {/* Deskripsi Subtitle (Identik Referensi) */}
-          <p className="text-slate-200 text-xs sm:text-sm mt-2 leading-relaxed px-2 font-normal">
-            Semua tautan penting Divisi Produksi I PT Batu Karang ada di sini — formulir shift, SOP pabrik, kendali mutu (QC), dan kontak resmi.
-          </p>
+          {/* Deskripsi Subtitle */}
+          {bannerConfig.description && (
+            <p className="text-[#d4e5f2] text-xs sm:text-[13px] mt-2.5 max-w-md mx-auto leading-relaxed px-2 font-normal">
+              {bannerConfig.description}
+            </p>
+          )}
 
           {/* Input Pencarian Hanya Muncul Jika Ikon Search di Bilah Atas Diklik */}
           {isSearchOpen && (
-            <div className="w-full max-w-sm mt-3.5 relative animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="w-full max-w-sm mt-3 relative animate-in fade-in slide-in-from-top-2 duration-150">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
@@ -356,7 +391,7 @@ export default function App() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari tautan, formulir, atau SOP..."
-                className="w-full bg-white text-slate-900 text-xs sm:text-sm rounded-full pl-9 pr-8 py-2 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder:text-slate-400"
+                className="w-full bg-white text-slate-900 text-xs sm:text-sm rounded-full pl-9 pr-8 py-2 shadow-md focus:outline-none focus:ring-2 focus:ring-[#004771] placeholder:text-slate-400"
               />
               {searchQuery && (
                 <button
@@ -371,8 +406,8 @@ export default function App() {
         </div>
       </section>
 
-      {/* 2. Main Content: Vertically Stacked Clean Cards (Sesuai Referensi) */}
-      <main className="max-w-xl w-full mx-auto px-4 -mt-4 sm:-mt-5 space-y-3 pb-16 flex-1 min-w-0">
+      {/* 2. Main Content: Vertically Stacked Clean Cards DENGAN JARAK PROPORSONAL (TIDAK BERTUMPUK) */}
+      <main className="max-w-xl w-full mx-auto px-4 mt-6 sm:mt-7 space-y-3.5 pb-16 flex-1 min-w-0">
         {/* Banner Sesi Staf jika login */}
         {activeStaff && (
           <div className="bg-emerald-600 text-white px-4 py-2.5 rounded-2xl text-xs font-semibold flex items-center justify-between gap-2 shadow-sm border border-emerald-500">
@@ -466,7 +501,14 @@ export default function App() {
       {/* 3. Footer Sederhana & Bersih (Persis Referensi) */}
       <footer className="py-6 px-4 text-center text-xs text-slate-400 border-t border-slate-200/60 mt-auto space-y-2">
         <p>© 2026 PT Batu Karang · Divisi Produksi I</p>
-        <div className="flex items-center justify-center gap-3 text-[11px] text-slate-400">
+        <div className="flex items-center justify-center gap-3 text-[11px] text-slate-400 flex-wrap">
+          <button
+            onClick={() => setIsEditBannerOpen(true)}
+            className="hover:text-slate-700 transition-colors cursor-pointer"
+          >
+            Ubah Teks Banner
+          </button>
+          <span>·</span>
           <button
             onClick={() => setIsAdminOpen(true)}
             className="hover:text-slate-700 transition-colors cursor-pointer"
@@ -491,6 +533,15 @@ export default function App() {
       </footer>
 
       {/* Modals & Popups */}
+
+      {/* 0. Modal Ubah Teks Banner Manual */}
+      <EditBannerModal
+        isOpen={isEditBannerOpen}
+        onClose={() => setIsEditBannerOpen(false)}
+        config={bannerConfig}
+        onSave={handleUpdateBanner}
+        showToast={showToast}
+      />
 
       {/* 1. Modal Otentikasi Staf (PIN) */}
       <StaffAuthModal
