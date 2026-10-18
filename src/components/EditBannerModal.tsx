@@ -60,7 +60,7 @@ export const EditBannerModal: React.FC<EditBannerModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
       <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header Modal */}
-        <div className="px-5 py-4 bg-[#004771] text-white flex items-center justify-between">
+        <div className="px-5 py-4 bg-[#091b31] text-white flex items-center justify-between border-b border-[#1e3250]">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-white/10 text-amber-300">
               <Type className="w-5 h-5" />
@@ -69,7 +69,7 @@ export const EditBannerModal: React.FC<EditBannerModalProps> = ({
               <h3 className="font-extrabold text-sm sm:text-base leading-tight">
                 Ubah Teks Banner Utama
               </h3>
-              <p className="text-[11px] text-sky-200">
+              <p className="text-[11px] text-sky-300">
                 Kustomisasi teks judul, sub-judul, dan deskripsi portal
               </p>
             </div>
@@ -85,9 +85,9 @@ export const EditBannerModal: React.FC<EditBannerModalProps> = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 text-slate-800 flex-1">
           {/* Live Preview Box */}
-          <div className="bg-[#004771] rounded-2xl p-4 text-white text-center shadow-inner relative overflow-hidden">
+          <div className="bg-gradient-to-r from-[#091b31] via-[#0d223d] to-[#071326] rounded-2xl p-4 text-white text-center shadow-inner relative overflow-hidden border border-[#1e3250]">
             <div className="text-[10px] uppercase font-bold text-sky-300 mb-2 flex items-center justify-center gap-1">
-              <Sparkles className="w-3 h-3 text-amber-400" />
+              <Sparkles className="w-3 h-3 text-sky-400" />
               <span>Pratinjau Langsung (Live Preview)</span>
             </div>
 
@@ -154,7 +154,7 @@ export const EditBannerModal: React.FC<EditBannerModalProps> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Tuliskan keterangan singkat mengenai portal ini..."
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#004771] focus:border-transparent leading-relaxed"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#0066ff] focus:border-transparent leading-relaxed"
             />
           </div>
 
@@ -179,7 +179,7 @@ export const EditBannerModal: React.FC<EditBannerModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 rounded-xl bg-[#004771] hover:bg-[#003859] text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-md active:scale-95"
+                className="px-5 py-2 rounded-xl bg-[#0066ff] hover:bg-[#0052cc] text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
               >
                 <Check className="w-4 h-4" />
                 <span>Simpan Perubahan</span>

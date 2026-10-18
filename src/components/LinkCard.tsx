@@ -47,18 +47,18 @@ export const LinkCard: React.FC<LinkCardProps> = ({
               ? 'border-amber-300/80 hover:border-amber-400 bg-linear-to-r from-amber-50/20 via-white to-white'
               : canEditByStaff
               ? 'border-emerald-300 hover:border-emerald-400 bg-emerald-50/10'
-              : 'border-[#dbe5ed] hover:border-[#0284c7]/70 hover:bg-slate-50/50'
+              : 'border-slate-200/90 hover:border-[#0066ff]/60 hover:bg-slate-50/50'
           }`}
         >
-          {/* Sisi Kiri: Ikon Khas Referensi */}
-          <div className="w-11 h-11 sm:w-12 sm:h-12 shrink-0 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-xl sm:text-2xl group-hover:scale-105 transition-transform shadow-2xs">
+          {/* Sisi Kiri: Ikon Khas Identitas PT Batu Karang */}
+          <div className="w-11 h-11 sm:w-12 sm:h-12 shrink-0 rounded-2xl bg-[#f0f7ff] border border-[#dbeafe] flex items-center justify-center text-xl sm:text-2xl group-hover:scale-105 transition-transform shadow-2xs">
             {link.icon || '🔗'}
           </div>
 
           {/* Bagian Tengah: Judul Huruf Kapital + Subtitle Keterangan */}
           <div className="flex flex-col min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 group-hover:text-[#004771] transition-colors uppercase tracking-tight truncate">
+              <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 group-hover:text-[#0066ff] transition-colors uppercase tracking-tight truncate">
                 {link.label}
               </h3>
 
@@ -109,7 +109,7 @@ export const LinkCard: React.FC<LinkCardProps> = ({
               </button>
             )}
 
-            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-sky-500 group-hover:translate-x-0.5 transition-transform" />
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-[#0066ff] group-hover:translate-x-0.5 transition-transform" />
           </div>
         </a>
       ) : (

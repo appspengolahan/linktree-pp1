@@ -259,25 +259,25 @@ export default function App() {
   }, [links, searchQuery, selectedCategory, filterByRoleOnly, currentRole, activeStaff]);
 
   return (
-    <div className="min-h-screen bg-[#ebf2f7] text-slate-900 flex flex-col font-sans antialiased selection:bg-sky-100 selection:text-sky-900">
-      {/* 1. Curved Deep Petroleum/Teal-Navy Hero Section (Sesuai Referensi, Kompak & Sejajar) */}
-      <section className="bg-gradient-to-b from-[#003859] via-[#004771] to-[#045586] text-white pt-3.5 pb-6 sm:pb-7 px-4 rounded-b-[32px] sm:rounded-b-[44px] shadow-md relative overflow-hidden">
+    <div className="min-h-screen bg-[#f1f5f9] text-slate-900 flex flex-col font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
+      {/* 1. Curved Midnight Navy Hero Section (Identitas Resmi Divisi Produksi I PT Batu Karang) */}
+      <section className="bg-gradient-to-r from-[#091b31] via-[#0d223d] to-[#071326] text-white pt-3.5 pb-6 sm:pb-7 px-4 rounded-b-[32px] sm:rounded-b-[44px] shadow-md border-b border-[#1e3250] relative overflow-hidden">
         {/* Subtle decorative glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-sky-400/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Minimalist Floating Top Utility Bar */}
+        {/* Minimalist Floating Top Utility Bar (Identik dengan Header Web Apps Monitoring Stock) */}
         <div className="max-w-xl mx-auto flex items-center justify-between text-xs pb-3 mb-3 border-b border-white/10">
-          {/* Status Sinkronisasi GAS */}
+          {/* Status Sinkronisasi GAS (Identik Tombol Auto-Sync Hijau Mint) */}
           <div
             onClick={() => setIsGasCenterOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 hover:bg-white/15 cursor-pointer transition-colors backdrop-blur-xs text-[11px]"
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#ecfdf5] border border-[#a7f3d0] hover:bg-[#d1fae5] text-[#047857] cursor-pointer transition-colors text-[11px] font-semibold shadow-2xs"
             title={gasConfig.webAppUrl ? 'GAS Live terhubung ke Google Sheets' : 'Local Cache 0.01s (Klik untuk atur GAS)'}
           >
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
             </span>
-            <span className="font-semibold text-slate-200">
+            <span>
               {gasConfig.webAppUrl ? 'GAS Live' : '0.01s Sync'}
             </span>
           </div>
@@ -286,7 +286,7 @@ export default function App() {
             {/* Tombol Ubah Teks Banner Secara Manual */}
             <button
               onClick={() => setIsEditBannerOpen(true)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-sky-200 hover:text-white transition-colors text-[11px] font-semibold cursor-pointer"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white transition-colors text-[11px] font-semibold cursor-pointer border border-white/10"
               title="Ubah teks banner secara manual"
             >
               <Edit3 className="w-3.5 h-3.5" />
@@ -299,38 +299,40 @@ export default function App() {
                 setIsSearchOpen(!isSearchOpen);
                 if (isSearchOpen) setSearchQuery('');
               }}
-              className={`p-1.5 rounded-full transition-colors cursor-pointer ${
-                isSearchOpen ? 'bg-white text-[#004771] shadow-xs' : 'bg-white/10 hover:bg-white/20 text-slate-200'
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer border ${
+                isSearchOpen
+                  ? 'bg-white text-[#0066ff] border-white shadow-xs'
+                  : 'bg-white/10 hover:bg-white/20 text-slate-200 border-white/10'
               }`}
               title={isSearchOpen ? 'Tutup Pencarian' : 'Cari Tautan...'}
             >
               <Search className="w-3.5 h-3.5" />
             </button>
 
-            {/* Tombol Peran RBAC */}
+            {/* Tombol Peran RBAC (Identik Pill Putih di Web Apps Monitoring Stock) */}
             <button
               onClick={() => setIsRbacModalOpen(true)}
-              className="flex items-center gap-1 px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-slate-200 transition-colors text-[11px] font-semibold cursor-pointer"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 transition-colors text-[11px] font-semibold cursor-pointer border border-slate-200/90 shadow-2xs"
               title="Ganti Peran Hak Akses (RBAC)"
             >
-              <UserCheck className="w-3.5 h-3.5 text-sky-300" />
-              <span>{currentRole}</span>
+              <UserCheck className="w-3.5 h-3.5 text-[#0066ff]" />
+              <span className="max-w-[90px] truncate">{currentRole}</span>
             </button>
 
             {/* Refresh */}
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-slate-200 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 transition-colors cursor-pointer border border-white/10"
               title="Segarkan data terbaru"
             >
-              <RotateCcw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-sky-300' : ''}`} />
+              <RotateCcw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-sky-400' : ''}`} />
             </button>
 
-            {/* Tombol Akses Admin */}
+            {/* Tombol Akses Admin (Identik Electric Royal Blue #0066ff) */}
             <button
               onClick={() => setIsAdminOpen(true)}
-              className="flex items-center gap-1 px-3 py-1 rounded-full bg-[#0284c7] hover:bg-[#0369a1] text-white font-bold transition-all text-[11px] shadow-2xs cursor-pointer"
+              className="flex items-center gap-1 px-3 py-1 rounded-lg bg-[#0066ff] hover:bg-[#0052cc] text-white font-bold transition-all text-[11px] shadow-xs active:scale-95 cursor-pointer"
               title="Panel Kelola & Statistik (Passcode)"
             >
               <ShieldCheck className="w-3.5 h-3.5" />
@@ -353,10 +355,10 @@ export default function App() {
               </div>
             </div>
 
-            {/* Teks Sejajar: Sub-judul Emas & Judul Utama */}
+            {/* Teks Sejajar: Sub-judul Emas/Cyan & Judul Utama */}
             <div className="flex flex-col min-w-0">
-              <p className="text-amber-400 font-bold tracking-wider text-[11px] sm:text-xs uppercase truncate">
-                {bannerConfig.badge}
+              <p className="text-[#38bdf8] font-bold tracking-wider text-[11px] sm:text-xs uppercase truncate flex items-center gap-1">
+                <span>{bannerConfig.badge}</span>
               </p>
               <h1 className="text-lg sm:text-2xl font-black text-white tracking-tight leading-tight truncate">
                 {bannerConfig.title}
@@ -366,7 +368,7 @@ export default function App() {
             {/* Tombol Cepat Edit Teks Banner (Pensil) */}
             <button
               onClick={() => setIsEditBannerOpen(true)}
-              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-sky-200 hover:text-white transition-colors cursor-pointer shrink-0 ml-0.5"
+              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-sky-300 hover:text-white transition-colors cursor-pointer shrink-0 ml-0.5 border border-white/10"
               title="Ubah teks banner ini secara manual"
               aria-label="Ubah Teks Banner"
             >
@@ -376,7 +378,7 @@ export default function App() {
 
           {/* Deskripsi Subtitle */}
           {bannerConfig.description && (
-            <p className="text-[#d4e5f2] text-xs sm:text-[13px] mt-2.5 max-w-md mx-auto leading-relaxed px-2 font-normal">
+            <p className="text-slate-300 text-xs sm:text-[13px] mt-2.5 max-w-md mx-auto leading-relaxed px-2 font-normal">
               {bannerConfig.description}
             </p>
           )}

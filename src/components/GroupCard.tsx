@@ -43,23 +43,23 @@ export const GroupCard: React.FC<GroupCardProps> = ({
             : canEditStaffGroup
             ? 'border-emerald-300 hover:border-emerald-400 bg-emerald-50/10'
             : isOpen
-            ? 'border-[#0284c7] ring-2 ring-[#0284c7]/15 bg-slate-50/40'
-            : 'border-[#dbe5ed] hover:border-[#0284c7]/70 hover:bg-slate-50/50'
+            ? 'border-[#0066ff] ring-2 ring-[#0066ff]/15 bg-slate-50/40'
+            : 'border-slate-200/90 hover:border-[#0066ff]/60 hover:bg-slate-50/50'
         }`}
       >
         {/* Sisi Kiri: Ikon Grup */}
-        <div className="w-11 h-11 sm:w-12 sm:h-12 shrink-0 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-xl sm:text-2xl group-hover:scale-105 transition-transform shadow-2xs">
+        <div className="w-11 h-11 sm:w-12 sm:h-12 shrink-0 rounded-2xl bg-[#f0f7ff] border border-[#dbeafe] flex items-center justify-center text-xl sm:text-2xl group-hover:scale-105 transition-transform shadow-2xs">
           {group.icon || '🗂️'}
         </div>
 
         {/* Bagian Tengah: Label Huruf Kapital + Subtitle Keterangan */}
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 group-hover:text-[#004771] transition-colors uppercase tracking-tight truncate">
+            <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 group-hover:text-[#0066ff] transition-colors uppercase tracking-tight truncate">
               {group.label}
             </h3>
 
-            <span className="text-[9px] font-bold text-blue-700 bg-blue-100/90 px-1.5 py-0.2 rounded-full border border-blue-200 shrink-0">
+            <span className="text-[9px] font-bold text-[#0066ff] bg-[#eff6ff] px-1.5 py-0.2 rounded-full border border-[#bfdbfe] shrink-0">
               {children.length}
             </span>
 
@@ -79,8 +79,8 @@ export const GroupCard: React.FC<GroupCardProps> = ({
         {/* Sisi Kanan: Chevron Dropdown Panah */}
         <div className="flex items-center gap-1 shrink-0">
           <ChevronDown
-            className={`w-4 h-4 sm:w-5 sm:h-5 text-sky-500 transition-transform duration-200 ${
-              isOpen ? 'rotate-180 text-blue-600' : ''
+            className={`w-4 h-4 sm:w-5 sm:h-5 text-[#0066ff] transition-transform duration-200 ${
+              isOpen ? 'rotate-180' : ''
             }`}
           />
         </div>
@@ -120,7 +120,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({
 
                       <div className="flex flex-col min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <h4 className="font-bold text-xs text-slate-900 group-hover/sub:text-blue-600 uppercase tracking-tight truncate">
+                          <h4 className="font-bold text-xs text-slate-900 group-hover/sub:text-[#0066ff] uppercase tracking-tight truncate">
                             {child.label}
                           </h4>
                           {canEditChild && (
@@ -148,7 +148,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({
                             <Edit3 className="w-3 h-3" />
                           </button>
                         )}
-                        <ChevronRight className="w-4 h-4 text-sky-500 group-hover/sub:translate-x-0.5 transition-transform" />
+                        <ChevronRight className="w-4 h-4 text-[#0066ff] group-hover/sub:translate-x-0.5 transition-transform" />
                       </div>
                     </a>
                   ) : (
