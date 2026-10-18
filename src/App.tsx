@@ -60,6 +60,7 @@ export default function App() {
   // UI Interactive State
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [adminInitialTab, setAdminInitialTab] = useState<'stats' | 'links' | 'staff'>('stats');
@@ -248,13 +249,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f0f4f8] text-slate-900 flex flex-col font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
-      {/* 1. Curved Deep Navy Hero Section (Persis Sesuai Gambar Referensi) */}
-      <section className="bg-gradient-to-b from-[#082846] via-[#0b385c] to-[#0d416b] text-white pt-4 pb-12 sm:pb-16 px-4 rounded-b-[40px] sm:rounded-b-[52px] shadow-lg relative overflow-hidden">
+      {/* 1. Curved Deep Navy Hero Section (Kompak & Bersih Sesuai Referensi) */}
+      <section className="bg-gradient-to-b from-[#082846] via-[#0b385c] to-[#0d416b] text-white pt-3 pb-8 sm:pb-10 px-4 rounded-b-[36px] sm:rounded-b-[48px] shadow-lg relative overflow-hidden">
         {/* Subtle decorative glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Minimalist Floating Top Utility Bar */}
-        <div className="max-w-xl mx-auto flex items-center justify-between text-xs pb-4 mb-4 border-b border-white/10">
+        <div className="max-w-xl mx-auto flex items-center justify-between text-xs pb-3 mb-3 border-b border-white/10">
           {/* Status Sinkronisasi GAS */}
           <div
             onClick={() => setIsGasCenterOpen(true)}
@@ -271,6 +272,20 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-1.5">
+            {/* Toggle Cari Tautan (Opsional) */}
+            <button
+              onClick={() => {
+                setIsSearchOpen(!isSearchOpen);
+                if (isSearchOpen) setSearchQuery('');
+              }}
+              className={`p-1.5 rounded-full transition-colors cursor-pointer ${
+                isSearchOpen ? 'bg-white text-blue-950 shadow-xs' : 'bg-white/10 hover:bg-white/20 text-slate-200'
+              }`}
+              title={isSearchOpen ? 'Tutup Pencarian' : 'Cari Tautan...'}
+            >
+              <Search className="w-3.5 h-3.5" />
+            </button>
+
             {/* Tombol Peran RBAC */}
             <button
               onClick={() => setIsRbacModalOpen(true)}
@@ -285,7 +300,7 @@ export default function App() {
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-slate-200 transition-colors"
+              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-slate-200 transition-colors cursor-pointer"
               title="Segarkan data terbaru"
             >
               <RotateCcw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-blue-300' : ''}`} />
@@ -306,8 +321,8 @@ export default function App() {
         {/* Profile Card Header: Logo Lingkaran + Teks Referensi */}
         <div className="max-w-md mx-auto text-center flex flex-col items-center">
           {/* Logo Avatar Lingkaran Putih di Bagian Tengah Atas */}
-          <div className="relative mb-3">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-white p-2.5 shadow-xl border-4 border-white/20 flex items-center justify-center">
+          <div className="relative mb-2.5">
+            <div className="w-20 h-20 sm:w-22 sm:h-22 rounded-full bg-white p-2.5 shadow-xl border-4 border-white/20 flex items-center justify-center">
               <img
                 src="/logo.svg"
                 alt="Logo 153 PT Batu Karang"
@@ -331,50 +346,33 @@ export default function App() {
             Semua tautan penting Divisi Produksi I PT Batu Karang ada di sini — formulir shift, SOP pabrik, kendali mutu (QC), dan kontak resmi.
           </p>
 
-          {/* Search Box Sederhana & Bersih */}
-          <div className="w-full max-w-sm mt-5 relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari tautan, formulir, atau SOP..."
-              className="w-full bg-white/95 text-slate-900 text-xs sm:text-sm rounded-full pl-9 pr-8 py-2.5 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder:text-slate-400"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          {/* Kategori Filter Pills */}
-          <div className="flex items-center justify-center gap-1.5 flex-wrap mt-3.5 max-w-lg">
-            {categories.map((cat) => {
-              const isSelected = selectedCategory === cat;
-              return (
+          {/* Input Pencarian Hanya Muncul Jika Ikon Search di Bilah Atas Diklik */}
+          {isSearchOpen && (
+            <div className="w-full max-w-sm mt-3.5 relative animate-in fade-in slide-in-from-top-2 duration-150">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                autoFocus
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari tautan, formulir, atau SOP..."
+                className="w-full bg-white text-slate-900 text-xs sm:text-sm rounded-full pl-9 pr-8 py-2 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder:text-slate-400"
+              />
+              {searchQuery && (
                 <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-white text-blue-900 shadow-sm font-bold'
-                      : 'bg-white/15 text-slate-200 hover:bg-white/25 hover:text-white'
-                  }`}
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
                 >
-                  {cat}
+                  ✕
                 </button>
-              );
-            })}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
       {/* 2. Main Content: Vertically Stacked Clean Cards (Sesuai Referensi) */}
-      <main className="max-w-xl w-full mx-auto px-4 -mt-5 sm:-mt-6 space-y-3 pb-16 flex-1 min-w-0">
+      <main className="max-w-xl w-full mx-auto px-4 -mt-4 sm:-mt-5 space-y-3 pb-16 flex-1 min-w-0">
         {/* Banner Sesi Staf jika login */}
         {activeStaff && (
           <div className="bg-emerald-600 text-white px-4 py-2.5 rounded-2xl text-xs font-semibold flex items-center justify-between gap-2 shadow-sm border border-emerald-500">
