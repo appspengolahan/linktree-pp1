@@ -1,12 +1,12 @@
 import { LinkItem, GasConfig, StatistikData, Role, StaffMember, DEFAULT_STAFF_PIN } from '../types';
 import { INITIAL_LINKS, INITIAL_STATISTIK } from './defaultData';
 
-const CACHE_KEY_LINKS = 'bkr_linkhub_cache_v2';
-const CACHE_KEY_STATS = 'bkr_linkhub_stats_v2';
+const CACHE_KEY_LINKS = 'bkr_linkhub_cache_v3';
+const CACHE_KEY_STATS = 'bkr_linkhub_stats_v3';
 const CACHE_KEY_CONFIG = 'bkr_gas_config';
 const CACHE_KEY_ROLE = 'bkr_user_role';
 const CACHE_KEY_SIDEBAR = 'bkr_sidebar_collapsed';
-const CACHE_KEY_VISIT_DATE = 'bkr_last_visit_date';
+const CACHE_KEY_VISIT_DATE = 'bkr_last_visit_date_v3';
 const CACHE_KEY_STAFF_LIST = 'bkr_staff_list_v2';
 const CACHE_KEY_ACTIVE_STAFF = 'bkr_active_staff_session';
 
@@ -391,6 +391,53 @@ export function getStoredStats(): StatistikData {
 
 export function saveStoredStats(stats: StatistikData): void {
   localStorage.setItem(CACHE_KEY_STATS, JSON.stringify(stats));
+}
+
+// Reset data statistik (kunjungan & klik) ke kondisi 0 bersih
+export function resetAllStatistics(): StatistikData {
+  const cleanStats: StatistikData = {
+    totalKunjungan: 0,
+    kunjunganHariIni: 0,
+    totalKlik: 0,
+    totalLinkAktif: getStoredLinks().filter((l) => String(l.aktif).toUpperCase() === 'TRUE').length,
+    trend14Hari: [],
+    topLinks: [],
+  };
+  saveStoredStats(cleanStats);
+  localStorage.removeItem(CACHE_KEY_VISIT_DATE);
+
+  // Reset juga jumlah klik pada seluruh link
+  const cleanLinks = getStoredLinks().map((l) => ({ ...l, klik: 0 }));
+  saveStoredLinks(cleanLinks);
+
+  return cleanStats;
+}
+
+// Reset daftar tautan ke konfigurasi awal tanpa link dummy
+export function resetAllLinksToDefault(): LinkItem[] {
+  localStorage.setItem(CACHE_KEY_LINKS, JSON.stringify(INITIAL_LINKS));
+  return INITIAL_LINKS;
+}
+
+// Factory Reset menyeluruh (Statistik 0 + Links Bersih)
+export function factoryResetAll(): { links: LinkItem[]; stats: StatistikData } {
+  localStorage.removeItem(CACHE_KEY_LINKS);
+  localStorage.removeItem(CACHE_KEY_STATS);
+  localStorage.removeItem(CACHE_KEY_VISIT_DATE);
+
+  const cleanLinks = INITIAL_LINKS.map((l) => ({ ...l, klik: 0 }));
+  const cleanStats: StatistikData = {
+    totalKunjungan: 0,
+    kunjunganHariIni: 0,
+    totalKlik: 0,
+    totalLinkAktif: cleanLinks.filter((l) => l.aktif && l.tipe !== 'Grup').length,
+    trend14Hari: [],
+    topLinks: [],
+  };
+
+  saveStoredLinks(cleanLinks);
+  saveStoredStats(cleanStats);
+  return { links: cleanLinks, stats: cleanStats };
 }
 
 export function recordLocalVisit(): void {

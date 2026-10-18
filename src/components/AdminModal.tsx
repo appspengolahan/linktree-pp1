@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   X,
   Lock,
@@ -37,6 +37,8 @@ import {
   deleteStoredStaff,
   resetStaffPinByAdmin,
   resetAllStaffPinsToDefault,
+  resetAllStatistics,
+  factoryResetAll,
 } from '../services/storage';
 import { pushGasLink, pushGasDeleteLink } from '../services/gasApi';
 
@@ -108,6 +110,18 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   // Filter mode tampilan tab kelola link: 'all' | 'visible' | 'hidden'
   const [linkVisibilityFilter, setLinkVisibilityFilter] = useState<'all' | 'visible' | 'hidden'>('all');
+
+  // Trend Chart State (Dynamic Range & Interactive Touch Inspect)
+  const [trendRange, setTrendRange] = useState<'7d' | '14d'>('7d');
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
+
+  const trendDisplayData = useMemo(() => {
+    if (!stats.trend14Hari || stats.trend14Hari.length === 0) return [];
+    if (trendRange === '7d') {
+      return stats.trend14Hari.slice(-7);
+    }
+    return stats.trend14Hari;
+  }, [stats.trend14Hari, trendRange]);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -244,6 +258,22 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     }
   };
 
+  const handleResetStatistics = () => {
+    if (window.confirm('Reset seluruh data statistik kunjungan, tren grafik, dan jumlah klik kembali ke 0? Tindakan ini membersihkan seluruh data uji coba/dummy.')) {
+      resetAllStatistics();
+      onDataChanged();
+      showToast('Statistik kunjungan dan klik berhasil direset ke 0.');
+    }
+  };
+
+  const handleFactoryReset = () => {
+    if (window.confirm('Bersihkan semua data dummy pengembangan dan reset seluruh link & statistik ke kondisi bersih awal?')) {
+      factoryResetAll();
+      onDataChanged();
+      showToast('Seluruh data link dummy dan statistik berhasil dibersihkan.');
+    }
+  };
+
   const handleMove = (id: string, direction: 'up' | 'down', parentId: string) => {
     const scopedLinks = allLinks
       .filter((l) => (parentId ? l.parentId === parentId : !l.parentId))
@@ -361,8 +391,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-4xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
         {/* Passcode Gate Screen */}
         {!isAuthenticated ? (
           <div className="p-6 sm:p-10 flex flex-col items-center justify-center text-center my-auto">
@@ -425,23 +455,25 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           /* Authenticated Admin Workspace */
           <>
             {/* Top Toolbar */}
-            <div className="px-6 py-4 bg-slate-900 border-b border-slate-800 text-white flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <Logo153 size="sm" />
-                <div>
-                  <h2 className="font-black text-sm sm:text-base tracking-tight leading-tight">
+            <div className="px-3.5 sm:px-6 py-3 sm:py-4 bg-slate-900 border-b border-slate-800 text-white flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <div className="shrink-0">
+                  <Logo153 size="sm" />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="font-black text-xs sm:text-base tracking-tight leading-tight truncate">
                     Panel Admin — Divisi Produksi I
                   </h2>
-                  <p className="text-[11px] text-slate-400">
-                    Kelola tautan, hak edit staf per unit, dan pantau statistik kunjungan pabrik
+                  <p className="text-[10px] sm:text-[11px] text-slate-400 truncate">
+                    Kelola tautan, hak edit staf per unit, dan analitik pabrik
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 <button
                   onClick={handleLogout}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
+                  className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
                   title="Keluar dari sesi admin"
                 >
                   <LogOut className="w-3.5 h-3.5" />
@@ -450,17 +482,18 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 <button
                   onClick={onClose}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  aria-label="Tutup"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            {/* Navigation Tabs (3 Tabs) */}
-            <div className="px-6 pt-3 pb-0 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
+            {/* Navigation Tabs (Responsive & Horizontal Swipeable) */}
+            <div className="px-3 sm:px-6 pt-2 sm:pt-3 pb-0 bg-slate-50 border-b border-slate-200 flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-none">
               <button
                 onClick={() => setActiveTab('stats')}
-                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
+                className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-bold border-b-2 whitespace-nowrap shrink-0 transition-all ${
                   activeTab === 'stats'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-900'
@@ -472,7 +505,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
               <button
                 onClick={() => setActiveTab('links')}
-                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
+                className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-bold border-b-2 whitespace-nowrap shrink-0 transition-all ${
                   activeTab === 'links'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-900'
@@ -484,7 +517,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
               <button
                 onClick={() => setActiveTab('staff')}
-                className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
+                className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-bold border-b-2 whitespace-nowrap shrink-0 transition-all ${
                   activeTab === 'staff'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-900'
@@ -495,109 +528,288 @@ export const AdminModal: React.FC<AdminModalProps> = ({
               </button>
             </div>
 
-            {/* Tab Contents */}
-            <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
+            {/* Tab Contents (Zero Horizontal Overflow) */}
+            <div className="p-3.5 sm:p-6 overflow-y-auto overflow-x-hidden flex-1 custom-scrollbar">
               {/* TAB 1: STATISTIK */}
               {activeTab === 'stats' && (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                    <div className="p-4 rounded-2xl bg-linear-to-br from-slate-900 to-blue-900 text-white shadow-sm">
-                      <span className="text-xs text-blue-200 font-medium">Total Kunjungan</span>
-                      <div className="text-2xl sm:text-3xl font-black font-mono-numbers mt-1">
+                <div className="space-y-4 sm:space-y-6">
+                  {/* Grid 4 Kartu Metrik */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+                    <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-linear-to-br from-slate-900 to-blue-900 text-white shadow-xs">
+                      <span className="text-[11px] sm:text-xs text-blue-200 font-medium block truncate">
+                        Total Kunjungan
+                      </span>
+                      <div className="text-xl sm:text-3xl font-black font-mono-numbers mt-0.5 sm:mt-1">
                         {stats.totalKunjungan.toLocaleString()}
                       </div>
-                      <span className="text-[10px] text-blue-300">Sejak aplikasi diluncurkan</span>
+                      <span className="text-[9px] sm:text-[10px] text-blue-300 block truncate">
+                        Sejak diluncurkan
+                      </span>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200 text-slate-800 shadow-xs">
-                      <span className="text-xs text-blue-700 font-semibold">Kunjungan Hari Ini</span>
-                      <div className="text-2xl sm:text-3xl font-black font-mono-numbers text-blue-900 mt-1">
+                    <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-blue-50/80 border border-blue-200 text-slate-800 shadow-2xs">
+                      <span className="text-[11px] sm:text-xs text-blue-700 font-semibold block truncate">
+                        Kunjungan Hari Ini
+                      </span>
+                      <div className="text-xl sm:text-3xl font-black font-mono-numbers text-blue-900 mt-0.5 sm:mt-1">
                         {stats.kunjunganHariIni.toLocaleString()}
                       </div>
-                      <span className="text-[10px] text-blue-600">Shift 1, 2, dan 3</span>
+                      <span className="text-[9px] sm:text-[10px] text-blue-600 block truncate">
+                        Shift 1, 2, dan 3
+                      </span>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-slate-800 shadow-xs">
-                      <span className="text-xs text-emerald-700 font-semibold">Total Klik Tautan</span>
-                      <div className="text-2xl sm:text-3xl font-black font-mono-numbers text-emerald-900 mt-1">
+                    <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-emerald-50/80 border border-emerald-200 text-slate-800 shadow-2xs">
+                      <span className="text-[11px] sm:text-xs text-emerald-700 font-semibold block truncate">
+                        Total Klik Tautan
+                      </span>
+                      <div className="text-xl sm:text-3xl font-black font-mono-numbers text-emerald-900 mt-0.5 sm:mt-1">
                         {stats.totalKlik.toLocaleString()}
                       </div>
-                      <span className="text-[10px] text-emerald-600">Aktivitas akses dokumen</span>
+                      <span className="text-[9px] sm:text-[10px] text-emerald-600 block truncate">
+                        Akses dokumen
+                      </span>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-slate-100 border border-slate-200 text-slate-800 shadow-xs">
-                      <span className="text-xs text-slate-600 font-semibold">Total Tautan Aktif</span>
-                      <div className="text-2xl sm:text-3xl font-black font-mono-numbers text-slate-900 mt-1">
+                    <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-100 border border-slate-200 text-slate-800 shadow-2xs">
+                      <span className="text-[11px] sm:text-xs text-slate-600 font-semibold block truncate">
+                        Total Tautan Aktif
+                      </span>
+                      <div className="text-xl sm:text-3xl font-black font-mono-numbers text-slate-900 mt-0.5 sm:mt-1">
                         {stats.totalLinkAktif}
                       </div>
-                      <span className="text-[10px] text-slate-500">Tampil di portal publik</span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate">
+                        Tampil di portal
+                      </span>
                     </div>
                   </div>
 
-                  {/* Tren Kunjungan 14 Hari */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                        Tren Kunjungan Harian (14 Hari Terakhir)
-                      </h4>
-                      <span className="text-[11px] font-mono text-slate-500">1 baris/hari teragregasi</span>
+                  {/* Tren Kunjungan Harian — Dinamis & Responsif */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 sm:p-5">
+                    {/* Header Grafik & Pengalih Rentang Waktu (7 Hari vs 14 Hari) */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                            Tren Kunjungan Harian
+                          </h4>
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-bold">
+                            {trendRange === '7d' ? '7 Hari Terakhir' : '14 Hari'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5">
+                          Ketuk balok grafik untuk melihat statistik detail per hari
+                        </p>
+                      </div>
+
+                      {/* Tombol Selector Rentang Dinamis */}
+                      <div className="flex items-center gap-1 bg-slate-200/90 p-0.5 rounded-xl text-[11px] font-bold self-start sm:self-auto">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTrendRange('7d');
+                            setSelectedDayIndex(null);
+                          }}
+                          className={`px-3 py-1 rounded-lg transition-all ${
+                            trendRange === '7d'
+                              ? 'bg-white text-blue-700 shadow-2xs font-extrabold'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          7 Hari (Mobile)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTrendRange('14d');
+                            setSelectedDayIndex(null);
+                          }}
+                          className={`px-3 py-1 rounded-lg transition-all ${
+                            trendRange === '14d'
+                              ? 'bg-white text-blue-700 shadow-2xs font-extrabold'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          14 Hari
+                        </button>
+                      </div>
                     </div>
 
-                    {stats.trend14Hari.length === 0 ? (
+                    {/* Panel Rincian Balok yang Dipilih / Disentuh */}
+                    {(() => {
+                      if (trendDisplayData.length === 0) return null;
+                      const maxVal = Math.max(...trendDisplayData.map((d) => d.jumlah), 1);
+                      const activeItem =
+                        selectedDayIndex !== null && trendDisplayData[selectedDayIndex]
+                          ? trendDisplayData[selectedDayIndex]
+                          : trendDisplayData[trendDisplayData.length - 1];
+
+                      if (!activeItem) return null;
+
+                      const isPeak = activeItem.jumlah === maxVal && maxVal > 0;
+                      return (
+                        <div className="mb-3 p-2.5 sm:p-3 rounded-xl bg-white border border-blue-200/80 shadow-2xs flex items-center justify-between gap-2 text-xs">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-base shrink-0">📊</span>
+                            <div className="min-w-0">
+                              <span className="text-slate-600 text-[11px] block truncate">
+                                Tanggal: <strong className="text-slate-900 font-semibold">{activeItem.tanggal}</strong>
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono text-xs sm:text-sm font-extrabold text-blue-700">
+                                  {activeItem.jumlah} Kunjungan
+                                </span>
+                                {isPeak && (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800">
+                                    Puncak Tertinggi
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-slate-500 font-mono shrink-0 hidden sm:inline">
+                            Aktivitas Shift 153
+                          </span>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Kontainer Matriks Balok Grafik */}
+                    {trendDisplayData.length === 0 ? (
                       <p className="text-xs text-slate-400 py-6 text-center">Belum ada data kunjungan.</p>
                     ) : (
-                      <div className="flex items-end gap-2 h-36 pt-4 px-2">
-                        {(() => {
-                          const maxCount = Math.max(...stats.trend14Hari.map((d) => d.jumlah), 1);
-                          return stats.trend14Hari.map((day, idx) => {
-                            const pct = Math.max(8, Math.round((day.jumlah / maxCount) * 100));
-                            const shortDate = day.tanggal.slice(5).replace('-', '/');
-                            return (
-                              <div
-                                key={idx}
-                                className="flex-1 flex flex-col items-center justify-end h-full group"
-                                title={`${day.tanggal}: ${day.jumlah} kunjungan`}
-                              >
-                                <span className="text-[10px] font-mono font-bold text-slate-700 mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  {day.jumlah}
-                                </span>
+                      <div className="bg-white rounded-xl border border-slate-200/90 p-2 sm:p-3">
+                        <div className="flex items-end gap-1 sm:gap-2 h-36 sm:h-40 pt-4 pb-1 px-1 w-full overflow-hidden">
+                          {(() => {
+                            const maxCount = Math.max(...trendDisplayData.map((d) => d.jumlah), 1);
+                            return trendDisplayData.map((day, idx) => {
+                              const isSelected =
+                                (selectedDayIndex === null && idx === trendDisplayData.length - 1) ||
+                                selectedDayIndex === idx;
+                              const isPeak = day.jumlah === maxCount && maxCount > 0;
+                              const pct = Math.max(12, Math.round((day.jumlah / maxCount) * 100));
+                              const shortDate = day.tanggal.slice(5).replace('-', '/');
+                              const dayOnly = day.tanggal.split('-')[2] || shortDate;
+
+                              return (
                                 <div
-                                  style={{ height: `${pct}%` }}
-                                  className="w-full bg-blue-600 group-hover:bg-blue-700 rounded-t-md transition-all shadow-xs"
-                                />
-                                <span className="text-[9px] font-mono text-slate-500 mt-1.5 truncate max-w-full">
-                                  {shortDate}
-                                </span>
-                              </div>
-                            );
-                          });
-                        })()}
+                                  key={day.tanggal || idx}
+                                  onClick={() => setSelectedDayIndex(idx)}
+                                  className="flex-1 min-w-0 flex flex-col items-center justify-end h-full cursor-pointer group select-none relative"
+                                  title={`${day.tanggal}: ${day.jumlah} kunjungan`}
+                                >
+                                  {/* Angka Kunjungan di Atas Balok */}
+                                  <span
+                                    className={`text-[8px] sm:text-[10px] font-mono font-bold mb-1 transition-all ${
+                                      isSelected
+                                        ? 'text-emerald-700 font-extrabold scale-110'
+                                        : trendRange === '7d'
+                                        ? 'text-slate-700 opacity-90'
+                                        : 'text-slate-500 opacity-0 group-hover:opacity-100 sm:opacity-75'
+                                    }`}
+                                  >
+                                    {day.jumlah}
+                                  </span>
+
+                                  {/* Batang Balok */}
+                                  <div className="w-full max-w-[28px] sm:max-w-[36px] flex items-end justify-center h-full">
+                                    <div
+                                      style={{ height: `${pct}%` }}
+                                      className={`w-full rounded-t-md transition-all duration-300 shadow-2xs ${
+                                        isSelected
+                                          ? 'bg-linear-to-t from-emerald-600 to-teal-400 ring-2 ring-emerald-400 ring-offset-1'
+                                          : isPeak
+                                          ? 'bg-linear-to-t from-blue-700 to-indigo-600'
+                                          : 'bg-linear-to-t from-blue-600 to-blue-400 group-hover:from-blue-700 group-hover:to-blue-500'
+                                      }`}
+                                    />
+                                  </div>
+
+                                  {/* Label Tanggal di Bawah Balok */}
+                                  <span
+                                    className={`text-[8px] sm:text-[9px] font-mono mt-1.5 truncate max-w-full text-center transition-colors ${
+                                      isSelected
+                                        ? 'text-emerald-800 font-extrabold underline'
+                                        : 'text-slate-500 group-hover:text-slate-900'
+                                    }`}
+                                  >
+                                    {trendRange === '7d' ? (
+                                      shortDate
+                                    ) : (
+                                      <>
+                                        <span className="sm:hidden">{dayOnly}</span>
+                                        <span className="hidden sm:inline">{shortDate}</span>
+                                      </>
+                                    )}
+                                  </span>
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
                       </div>
                     )}
                   </div>
 
                   {/* Top Tautan Terpopuler */}
-                  <div className="bg-white border border-slate-200 rounded-2xl p-5">
+                  <div className="bg-white border border-slate-200 rounded-2xl p-3.5 sm:p-5">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3">
                       Tautan &amp; Grup Paling Sering Dibuka
                     </h4>
                     <div className="divide-y divide-slate-100">
                       {stats.topLinks.map((item, idx) => (
-                        <div key={idx} className="py-2.5 flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold text-slate-400 w-4">{idx + 1}.</span>
-                            <span className="font-bold text-slate-800">{item.label}</span>
+                        <div key={idx} className="py-2.5 flex items-center justify-between text-xs gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-mono font-bold text-slate-400 w-4 shrink-0">{idx + 1}.</span>
+                            <span className="font-bold text-slate-800 truncate">{item.label}</span>
                             {item.tipe === 'Grup' && (
-                              <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-medium">
+                              <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-medium shrink-0">
                                 Grup
                               </span>
                             )}
                           </div>
-                          <span className="font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                          <span className="font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 shrink-0">
                             {item.klik.toLocaleString()} klik
                           </span>
                         </div>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* Panel Pembersihan & Reset Data Pengembangan */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 sm:p-5">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Pembersihan Data &amp; Reset Pengembangan</span>
+                        </h4>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Gunakan tombol ini untuk mengosongkan statistik riwayat uji coba atau membersihkan seluruh link dummy.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={handleResetStatistics}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-xs font-bold transition-all shadow-2xs active:scale-95"
+                          title="Reset total kunjungan, kunjungan hari ini, dan total klik ke 0"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Reset Statistik ke 0</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleFactoryReset}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold transition-all shadow-2xs active:scale-95"
+                          title="Bersihkan semua link dummy pengembangan dan reset statistik ke awal"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                          <span>Bersihkan Semua Data Uji</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -286,6 +286,9 @@ export default function App() {
     return structuredLinks.filter((l) => String(l.pinned).toUpperCase() !== 'TRUE' || l.tipe === 'Grup');
   }, [structuredLinks]);
 
+  const masterSheetLink = useMemo(() => links.find((l) => l.id === 'LNK-PIN-01'), [links]);
+  const hotlineLink = useMemo(() => links.find((l) => l.id === 'LNK-PIN-02'), [links]);
+
   const categories = [
     'Semua',
     'Operasional & Lini',
@@ -500,25 +503,52 @@ export default function App() {
               <span className="text-[10px] font-bold text-slate-800 line-clamp-1">Stock PP1</span>
             </a>
 
-            <a
-              href="https://wa.me/6281234567890"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex flex-col items-center text-center p-2.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs active:scale-95 transition-transform"
-            >
-              <span className="text-xl mb-1">🚨</span>
-              <span className="text-[10px] font-bold text-slate-800 line-clamp-1">Hotline 153</span>
-            </a>
+            {hotlineLink?.url ? (
+              <a
+                href={hotlineLink.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => handleClickLink(hotlineLink.id)}
+                className="flex flex-col items-center text-center p-2.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs active:scale-95 transition-transform"
+              >
+                <span className="text-xl mb-1">🚨</span>
+                <span className="text-[10px] font-bold text-slate-800 line-clamp-1">Hotline 153</span>
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={() => showToast('Nomor Hotline 153 belum diatur. Silakan atur di Panel Admin.')}
+                className="flex flex-col items-center text-center p-2.5 rounded-xl bg-slate-50 border border-slate-200/90 opacity-75 active:scale-95 transition-transform"
+              >
+                <span className="text-xl mb-1">🚨</span>
+                <span className="text-[10px] font-bold text-slate-500 line-clamp-1">Hotline 153</span>
+              </button>
+            )}
 
-            <a
-              href="https://docs.google.com/spreadsheets/d/153_BatuKarang_Produksi_Master/edit"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex flex-col items-center text-center p-2.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs active:scale-95 transition-transform"
-            >
-              <span className="text-xl mb-1">📊</span>
-              <span className="text-[10px] font-bold text-slate-800 line-clamp-1">Master Sheet</span>
-            </a>
+            {masterSheetLink?.url ? (
+              <a
+                href={masterSheetLink.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => handleClickLink(masterSheetLink.id)}
+                className="flex flex-col items-center text-center p-2.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs active:scale-95 transition-transform"
+              >
+                <span className="text-xl mb-1">📊</span>
+                <span className="text-[10px] font-bold text-slate-800 line-clamp-1">Master Sheet</span>
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsGasCenterOpen(true);
+                  showToast('Hubungkan spreadsheet Anda di menu Integrasi GAS.');
+                }}
+                className="flex flex-col items-center text-center p-2.5 rounded-xl bg-slate-50 border border-slate-200/90 opacity-75 active:scale-95 transition-transform"
+              >
+                <span className="text-xl mb-1">📊</span>
+                <span className="text-[10px] font-bold text-slate-500 line-clamp-1">Master Sheet</span>
+              </button>
+            )}
           </div>
 
           {/* RBAC Smart Filter Active Alert Banner */}

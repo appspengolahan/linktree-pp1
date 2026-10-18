@@ -114,7 +114,7 @@ export const LinkCard: React.FC<LinkCardProps> = ({
       {/* Action Footer */}
       <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 mt-auto min-w-0">
         <span className="text-[10px] sm:text-[11px] font-mono text-slate-400 truncate flex-1 min-w-0">
-          {link.url.replace(/^https?:\/\//, '')}
+          {link.url ? link.url.replace(/^https?:\/\//, '') : 'Menunggu URL resmi'}
         </span>
 
         <div className="flex items-center gap-1.5 shrink-0">
@@ -130,16 +130,25 @@ export const LinkCard: React.FC<LinkCardProps> = ({
             </button>
           )}
 
-          <a
-            href={link.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={handleClick}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-[11px] font-bold shadow-xs transition-all active:scale-95"
-          >
-            <span>Buka</span>
-            <ExternalLink className="w-3 h-3" />
-          </a>
+          {link.url ? (
+            <a
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handleClick}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-[11px] font-bold shadow-xs transition-all active:scale-95"
+            >
+              <span>Buka</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          ) : (
+            <span
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 text-slate-400 text-[10px] sm:text-[11px] font-semibold border border-slate-200 cursor-default"
+              title="Tautan belum diisi. Masukkan URL resmi melalui Panel Admin atau menu Staf."
+            >
+              Menunggu Link
+            </span>
+          )}
         </div>
       </div>
     </div>
