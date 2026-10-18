@@ -247,9 +247,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Desktop Persistent Sidebar */}
+      {/* Desktop Persistent Sidebar (Locked on scroll) */}
       <aside
-        className={`hidden lg:block shrink-0 transition-all duration-200 h-[calc(100vh-53px)] sticky top-[53px] ${
+        className={`hidden lg:block shrink-0 transition-all duration-200 h-[calc(100vh-3.5rem)] sticky top-14 z-30 self-start ${
           collapsed ? 'w-20' : 'w-64'
         }`}
       >
