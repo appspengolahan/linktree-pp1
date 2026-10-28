@@ -231,14 +231,43 @@ export const GasCenterModal: React.FC<GasCenterModalProps> = ({
                       type="button"
                       onClick={handlePushAll}
                       disabled={isPushing || !(urlInput.trim() || gasConfig.webAppUrl)}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold shadow-xs transition-colors"
                       title="Kirim seluruh daftar tautan lokal saat ini ke Google Sheets"
                     >
                       <ArrowUpFromLine className={`w-3.5 h-3.5 ${isPushing ? 'animate-bounce' : ''}`} />
-                      <span>{isPushing ? 'Mengunggah...' : '⬆️ Unggah ke Sheets'}</span>
+                      <span>{isPushing ? 'Mengunggah...' : '⬆️ Unggah Semua ke Sheets'}</span>
                     </button>
                   </div>
                 </div>
+
+                {/* Multi-Device Synchronize URL Share Box */}
+                {(urlInput.trim() || gasConfig.webAppUrl) && (
+                  <div className="bg-blue-950/60 border border-blue-500/40 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5 font-bold text-blue-200">
+                        <span>📱 Sinkronisasi Otomatis ke HP / Device Lain</span>
+                      </div>
+                      <p className="text-[11px] text-blue-300/80">
+                        Kirim link ini ke WhatsApp atau buka di HP agar ponsel Anda langsung terhubung ke Google Spreadsheet yang sama.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetUrl = urlInput.trim() || gasConfig.webAppUrl;
+                        const syncUrl = `${window.location.origin}${window.location.pathname}?gas=${encodeURIComponent(targetUrl)}`;
+                        navigator.clipboard.writeText(syncUrl);
+                        if (showToast) showToast('Link Sinkronisasi HP berhasil disalin ke clipboard!');
+                        else alert('Link Sinkronisasi HP berhasil disalin!\nBuka link tersebut di browser HP agar langsung terhubung.');
+                      }}
+                      className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-400 text-white text-xs font-bold transition-colors shadow-xs"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Salin Link Sinkronisasi HP</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Two-Way Sync Feature Pills */}
                 <div className="pt-3 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
@@ -264,6 +293,23 @@ export const GasCenterModal: React.FC<GasCenterModalProps> = ({
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Vercel Environment Variable Instructions Card */}
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-xs text-slate-700 space-y-2">
+                <div className="flex items-center gap-2 font-bold text-amber-900">
+                  <span className="text-base">💡</span>
+                  <span>Solusi Permanen untuk Vercel (Semua Pengunjung &amp; HP Otomatis Realtime)</span>
+                </div>
+                <p className="text-slate-600 leading-relaxed text-[11px]">
+                  Agar setiap orang yang membuka link utama <code className="font-mono font-bold text-amber-900">linktree-pp1.vercel.app</code> di HP atau perangkat manapun langsung terhubung tanpa perlu kirim link khusus:
+                </p>
+                <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-700 bg-white/70 p-2.5 rounded-xl border border-amber-200">
+                  <li>Buka dashboard Vercel Anda di proyek ini.</li>
+                  <li>Masuk ke <strong>Settings</strong> &gt; <strong>Environment Variables</strong>.</li>
+                  <li>Tambahkan variabel baru: Key = <code className="font-mono font-bold text-blue-700">VITE_GAS_URL</code> dan Value = <code className="font-mono text-slate-800">(URL Web App Google Script Anda)</code>.</li>
+                  <li>Lakukan <strong>Redeploy</strong>. Maka seluruh HP dan publik akan otomatis menggunakan spreadsheet tersebut secara realtime!</li>
+                </ol>
               </div>
 
               {/* Form Input URL & Passcode */}

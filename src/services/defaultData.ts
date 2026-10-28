@@ -42,14 +42,14 @@ export const INITIAL_LINKS: LinkItem[] = [
     parentId: '',
   },
 
-  // Grup 1: Sistem Monitoring & Lini
+  // Grup 1: INFORMASI PRUF
   {
     id: 'GRP-01',
-    label: 'Sistem Monitoring & Lini Produksi',
+    label: 'INFORMASI PRUF',
     url: '',
     icon: '🏭',
     kategori: 'Operasional & Lini',
-    deskripsi: 'Portal SCADA, monitoring stok bahan, OEE mesin, dan CCTV lini pabrik',
+    deskripsi: 'Komposisi Pemkaian Bahan untuk Proses Tembakau Blend',
     urutan: 30,
     aktif: true,
     pinned: false,
@@ -119,14 +119,14 @@ export const INITIAL_LINKS: LinkItem[] = [
     parentId: 'GRP-01',
   },
 
-  // Grup 2: Formulir & Logbook Shift
+  // Grup 2: PLANING PROSES & JADWAL PENGIRIMAN TEMBAKAU BLEND
   {
     id: 'GRP-02',
-    label: 'Formulir & Logbook Shift Kerja',
+    label: 'PLANING PROSES & JADWAL PENGIRIMAN TEMBAKAU BLEND',
     url: '',
     icon: '📝',
     kategori: 'Formulir & Shift',
-    deskripsi: 'Form input ritase, berita acara serah terima regu, dan lapor kendala',
+    deskripsi: 'Panduan Planing - Planing Proses - Jadwal Pengiriman',
     urutan: 40,
     aktif: true,
     pinned: false,

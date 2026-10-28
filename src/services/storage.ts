@@ -344,20 +344,33 @@ export function updateLinkByStaff(
 // ------------------------------------------------------------
 
 export function getGasConfig(): GasConfig {
+  let defaultUrl = '';
+  try {
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GAS_URL) {
+      defaultUrl = String(import.meta.env.VITE_GAS_URL).trim();
+    }
+  } catch {
+    // ignore
+  }
+
   try {
     const raw = localStorage.getItem(CACHE_KEY_CONFIG);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (!parsed.webAppUrl && defaultUrl) {
+        parsed.webAppUrl = defaultUrl;
+      }
+      return parsed;
     }
   } catch (e) {
     console.error('Gagal membaca GAS config:', e);
   }
   return {
-    webAppUrl: '',
+    webAppUrl: defaultUrl || '',
     adminPasscode: 'bkr153',
     autoSync: true,
     syncIntervalMinutes: 5,
-    syncStatus: 'cached',
+    syncStatus: defaultUrl ? 'online' : 'cached',
   };
 }
 

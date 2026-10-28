@@ -31,6 +31,7 @@ import {
   setActiveStaffSession,
   getStoredBannerConfig,
   saveStoredBannerConfig,
+  saveStoredLinks,
 } from './services/storage';
 import { fetchGasLinks, postGasRecordClick } from './services/gasApi';
 import { isLinkRelevantForRole, hasFullAccessRole } from './services/rbac';
@@ -123,8 +124,27 @@ export default function App() {
     // Catat kunjungan harian
     recordLocalVisit();
 
-    // Silent Background Sync jika GAS dikonfigurasi
-    const config = getGasConfig();
+    // Periksa apakah URL membawa parameter ?gas= untuk auto-connect database antar-device
+    let config = getGasConfig();
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const gasParam = params.get('gas');
+      if (gasParam) {
+        const decoded = decodeURIComponent(gasParam).trim();
+        config = {
+          ...config,
+          webAppUrl: decoded,
+          syncStatus: 'online',
+          lastSyncTimestamp: Date.now(),
+        };
+        saveGasConfig(config);
+        setGasConfig(config);
+      }
+    } catch {
+      // ignore
+    }
+
+    // Background Sync ke Google Spreadsheet
     if (config.webAppUrl) {
       silentBackgroundSync(config);
     }
@@ -135,6 +155,7 @@ export default function App() {
       const res = await fetchGasLinks(cfg.webAppUrl);
       if (res.success && res.links && res.links.length > 0) {
         setLinks(res.links);
+        saveStoredLinks(res.links); // Simpan ke cache lokal agar device lain langsung memiliki data terbaru
         setGasConfig((prev) => {
           const updated: GasConfig = {
             ...prev,

@@ -24,6 +24,10 @@ import {
   ShieldAlert,
   ShieldCheck,
   Check,
+  Download,
+  Upload,
+  Smartphone,
+  CloudUpload,
 } from 'lucide-react';
 import { LinkItem, StatistikData, GasConfig, StaffMember, DEFAULT_STAFF_PIN } from '../types';
 import { Logo153 } from './Logo153';
@@ -39,8 +43,9 @@ import {
   resetAllStaffPinsToDefault,
   resetAllStatistics,
   factoryResetAll,
+  saveStoredLinks,
 } from '../services/storage';
-import { pushGasLink, pushGasDeleteLink } from '../services/gasApi';
+import { pushGasLink, pushGasDeleteLink, pushGasAllLinks } from '../services/gasApi';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -166,6 +171,81 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     sessionStorage.removeItem('bkr_admin_token');
     setIsAuthenticated(false);
     setPasscode('');
+  };
+
+  const [isCloudPushing, setIsCloudPushing] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleExportJson = () => {
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(allLinks, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `batukarang_links_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    showToast('File cadangan JSON berhasil diunduh!');
+  };
+
+  const handleImportJsonFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].id) {
+          saveStoredLinks(parsed);
+          onDataChanged();
+          showToast(`Berhasil memulihkan ${parsed.length} tautan dari file JSON!`);
+          if (gasConfig.webAppUrl) {
+            if (window.confirm('Ingin langsung mengunggah data hasil impor ini ke Google Sheets?')) {
+              setIsCloudPushing(true);
+              const pushRes = await pushGasAllLinks(gasConfig.webAppUrl, parsed, gasConfig.adminPasscode);
+              setIsCloudPushing(false);
+              if (pushRes.success) {
+                showToast('Data berhasil disinkronkan ke Google Sheets!');
+              }
+            }
+          }
+        } else {
+          alert('Format file JSON tidak sesuai struktur tautan PT Batu Karang.');
+        }
+      } catch (err) {
+        alert('Gagal membaca file JSON: ' + (err as Error).message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handlePushAllToSheets = async () => {
+    if (!gasConfig.webAppUrl) {
+      alert('Endpoint Google Apps Script belum diatur. Silakan atur di menu "Integrasi GAS" pada footer.');
+      return;
+    }
+    if (!window.confirm(`Unggah seluruh ${allLinks.length} tautan saat ini ke Google Spreadsheet? Spreadsheet akan diperbarui dengan data master ini.`)) {
+      return;
+    }
+    setIsCloudPushing(true);
+    const res = await pushGasAllLinks(gasConfig.webAppUrl, allLinks, gasConfig.adminPasscode);
+    setIsCloudPushing(false);
+    if (res.success) {
+      showToast(`Berhasil mengunggah ${res.count || allLinks.length} tautan ke Google Sheets!`);
+    } else {
+      alert('Gagal mengunggah ke Google Sheets: ' + (res.error || 'Terjadi kesalahan'));
+    }
+  };
+
+  const handleCopyHpSyncUrl = () => {
+    if (!gasConfig.webAppUrl) {
+      alert('Hubungkan Web App URL Google Sheets terlebih dahulu di menu "Integrasi GAS" pada footer.');
+      return;
+    }
+    const syncUrl = `${window.location.origin}${window.location.pathname}?gas=${encodeURIComponent(gasConfig.webAppUrl)}`;
+    navigator.clipboard.writeText(syncUrl);
+    showToast('Link Sinkronisasi HP tersalin! Buka link ini di WhatsApp/ponsel Anda.');
   };
 
   const grupList = allLinks.filter((l) => l.tipe === 'Grup');
@@ -873,6 +953,85 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>+ Tambah Link</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Multi-Device Sync & Backup Bar */}
+                  <div className="bg-slate-100 border border-slate-200/80 rounded-2xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${gasConfig.webAppUrl ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
+                        <CloudUpload className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-800">
+                            {gasConfig.webAppUrl ? 'Sinkronisasi Google Sheets Aktif' : 'Mode Cache Lokal (Perlu Integrasi)'}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${gasConfig.webAppUrl ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}`}>
+                            {gasConfig.webAppUrl ? 'Multi-Device' : 'Lokal PC'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                          {gasConfig.webAppUrl
+                            ? 'Perubahan otomatis tersimpan ke spreadsheet master agar sinkron di HP.'
+                            : 'Hubungkan URL Web App di tab "Integrasi GAS" agar perubahan di PC langsung muncul di ponsel.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 shrink-0 w-full sm:w-auto">
+                      {gasConfig.webAppUrl && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={handlePushAllToSheets}
+                            disabled={isCloudPushing}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-[11px] font-bold shadow-2xs transition-colors"
+                            title="Unggah semua data yang ada di PC saat ini ke Google Spreadsheet"
+                          >
+                            <CloudUpload className={`w-3.5 h-3.5 ${isCloudPushing ? 'animate-bounce' : ''}`} />
+                            <span>{isCloudPushing ? 'Mengunggah...' : '⬆️ Unggah ke Sheets'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={handleCopyHpSyncUrl}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold shadow-2xs transition-colors"
+                            title="Salin link yang otomatis menghubungkan ponsel ke Google Sheets"
+                          >
+                            <Smartphone className="w-3.5 h-3.5" />
+                            <span>📱 Salin Link HP</span>
+                          </button>
+                        </>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={handleExportJson}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold shadow-2xs transition-colors"
+                        title="Unduh file cadangan JSON data link"
+                      >
+                        <Download className="w-3.5 h-3.5 text-slate-500" />
+                        <span>Ekspor JSON</span>
+                      </button>
+
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleImportJsonFile}
+                        accept=".json"
+                        className="hidden"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold shadow-2xs transition-colors"
+                        title="Pulihkan data link dari file cadangan JSON"
+                      >
+                        <Upload className="w-3.5 h-3.5 text-slate-500" />
+                        <span>Impor JSON</span>
                       </button>
                     </div>
                   </div>
