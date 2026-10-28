@@ -1,18 +1,31 @@
 import { Role, RolePermission, LinkItem } from '../types';
 
 export const ROLE_PERMISSIONS: Record<Role, RolePermission> = {
+  Developer: {
+    role: 'Developer',
+    title: 'Developer / DevOps Lead',
+    icon: '💻',
+    badgeColor: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
+    deskripsi: 'Akses penuh tanpa batas: debug teknis, bypass otentikasi staf, edit semua tautan/grup, integrasi GAS, dan navigasi peran instan.',
+    canViewAllLinks: true,
+    canEditLinks: true,
+    canAccessGasCenter: true,
+    canViewAnalytics: true,
+    canConfigureRoles: true,
+    priorityCategories: ['Operasional & Lini', 'Formulir & Shift', 'Kendali Mutu (QC)', 'K3LH & SOP', 'Kontak & Database'],
+  },
   'Site Engineer': {
     role: 'Site Engineer',
-    title: 'Site Engineer Lapangan',
+    title: 'Site Engineer (Full Access)',
     icon: '👷',
     badgeColor: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-    deskripsi: 'Fokus pada pengawasan teknis lini mesin, formulir shift, checklist inspeksi QC, dan pelaporan kendala/downtime di lapangan.',
+    deskripsi: 'Akses penuh tanpa batas: pengawasan teknis lini mesin, edit link & formulir shift, kendali mutu QC, integrasi GAS, dan koordinasi lapangan.',
     canViewAllLinks: true,
-    canEditLinks: false,
-    canAccessGasCenter: false,
-    canViewAnalytics: false,
-    canConfigureRoles: false,
-    priorityCategories: ['Operasional & Lini', 'Formulir & Shift', 'Kendali Mutu (QC)', 'K3LH & SOP'],
+    canEditLinks: true,
+    canAccessGasCenter: true,
+    canViewAnalytics: true,
+    canConfigureRoles: true,
+    priorityCategories: ['Operasional & Lini', 'Formulir & Shift', 'Kendali Mutu (QC)', 'K3LH & SOP', 'Kontak & Database'],
   },
   'Project Manager': {
     role: 'Project Manager',
@@ -55,8 +68,12 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermission> = {
   },
 };
 
+export function hasFullAccessRole(role: Role): boolean {
+  return role === 'Developer' || role === 'Site Engineer' || role === 'Admin';
+}
+
 export function isLinkRelevantForRole(link: LinkItem, role: Role): boolean {
-  if (role === 'Admin') return true;
+  if (hasFullAccessRole(role)) return true;
   const perm = ROLE_PERMISSIONS[role];
   if (!perm) return true;
 

@@ -40,7 +40,7 @@ export const RbacModal: React.FC<RbacModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const roles: Role[] = ['Site Engineer', 'Project Manager', 'Manajer operasional', 'Admin'];
+  const roles: Role[] = ['Developer', 'Site Engineer', 'Project Manager', 'Manajer operasional', 'Admin'];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150">

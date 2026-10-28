@@ -3,7 +3,7 @@
  * PT Batu Karang - Divisi Produksi I
  */
 
-export type Role = 'Project Manager' | 'Site Engineer' | 'Manajer operasional' | 'Admin';
+export type Role = 'Developer' | 'Site Engineer' | 'Project Manager' | 'Manajer operasional' | 'Admin';
 
 export const DEFAULT_STAFF_PIN = '123456';
 

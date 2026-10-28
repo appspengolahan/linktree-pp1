@@ -14,6 +14,26 @@ const CACHE_KEY_BANNER = 'bkr_banner_config_v1';
 // Data Staf Awal Berdasarkan Unit Operasional
 export const INITIAL_STAFF_LIST: StaffMember[] = [
   {
+    id: 'STF-DEV',
+    nama: 'Lead Developer / Engineer',
+    jabatan: 'Developer',
+    email: 'divisi1.bkr@gmail.com',
+    pin: DEFAULT_STAFF_PIN,
+    unit: 'DevOps & Engineering',
+    allowedLinkIds: ['*'],
+    aktif: true,
+  },
+  {
+    id: 'STF-ENG',
+    nama: 'Lalu Mahendra',
+    jabatan: 'Site Engineer',
+    email: 'lalu.engineer@batukarang.co.id',
+    pin: DEFAULT_STAFF_PIN,
+    unit: 'Divisi Produksi I',
+    allowedLinkIds: ['*'],
+    aktif: true,
+  },
+  {
     id: 'STF-01',
     nama: 'Budi Santoso',
     jabatan: 'Supervisor QC & Laboratorium',
@@ -269,6 +289,15 @@ export function deleteStoredStaff(id: string): { success: boolean } {
 // Cek Apakah Staf Memiliki Izin Mengedit Link Tertentu
 export function canStaffEditLink(staff: StaffMember | null, linkId: string): boolean {
   if (!staff || !staff.aktif) return false;
+  // Akses penuh untuk Developer, Site Engineer, Admin, atau wildcard '*'
+  if (
+    staff.allowedLinkIds.includes('*') ||
+    staff.jabatan === 'Developer' ||
+    staff.jabatan === 'Site Engineer' ||
+    staff.jabatan === 'Admin'
+  ) {
+    return true;
+  }
   return Array.isArray(staff.allowedLinkIds) && staff.allowedLinkIds.includes(linkId);
 }
 
@@ -346,7 +375,7 @@ export function saveSidebarCollapsed(collapsed: boolean): void {
 
 export function getUserRole(): Role {
   const role = localStorage.getItem(CACHE_KEY_ROLE) as Role;
-  if (role && ['Project Manager', 'Site Engineer', 'Manajer operasional', 'Admin'].includes(role)) {
+  if (role && ['Developer', 'Site Engineer', 'Project Manager', 'Manajer operasional', 'Admin'].includes(role)) {
     return role;
   }
   return 'Site Engineer';

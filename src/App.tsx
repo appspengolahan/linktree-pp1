@@ -17,7 +17,7 @@ import {
   Lock,
 } from 'lucide-react';
 
-import { LinkItem, Role, GasConfig, StatistikData, StaffMember, BannerConfig } from './types';
+import { LinkItem, Role, GasConfig, StatistikData, StaffMember, BannerConfig, DEFAULT_STAFF_PIN } from './types';
 import {
   getStoredLinks,
   getStoredStats,
@@ -33,10 +33,11 @@ import {
   saveStoredBannerConfig,
 } from './services/storage';
 import { fetchGasLinks, postGasRecordClick } from './services/gasApi';
-import { isLinkRelevantForRole } from './services/rbac';
+import { isLinkRelevantForRole, hasFullAccessRole } from './services/rbac';
 
 import { LinkCard } from './components/LinkCard';
 import { GroupCard } from './components/GroupCard';
+import { RoleNavToggle } from './components/RoleNavToggle';
 import { AdminModal } from './components/AdminModal';
 import { GasCenterModal } from './components/GasCenterModal';
 import { RbacModal } from './components/RbacModal';
@@ -148,13 +149,41 @@ export default function App() {
     }
   };
 
+  const isFullAccess = hasFullAccessRole(currentRole);
+
   const handleRoleChange = (role: Role) => {
     setCurrentRole(role);
     saveUserRole(role);
-    showToast(`Beralih ke hak akses: ${role}`);
+    const isRoleFull = hasFullAccessRole(role);
+    showToast(isRoleFull ? `⚡ Peran ${role} Aktif (Akses Penuh)` : `Beralih ke hak akses: ${role}`);
     if (role === 'Admin') {
       setIsAdminOpen(true);
     }
+  };
+
+  const handleToggleFilterByRole = (val: boolean) => {
+    setFilterByRoleOnly(val);
+    localStorage.setItem('bkr_filter_role_only', val ? 'true' : 'false');
+    showToast(val ? `Filter prioritas ${currentRole} diaktifkan` : 'Menampilkan seluruh tautan direktori');
+  };
+
+  const handleInitiateEdit = (target: LinkItem) => {
+    if (!activeStaff && isFullAccess) {
+      // Auto-assign sesi Developer / Site Engineer tanpa perlu memasukkan PIN
+      const autoStaff: StaffMember = {
+        id: currentRole === 'Developer' ? 'STF-DEV' : 'STF-ENG',
+        nama: currentRole === 'Developer' ? 'Lead Developer / Engineer' : 'Lalu Mahendra (Site Engineer)',
+        jabatan: currentRole,
+        email: 'divisi1.bkr@gmail.com',
+        pin: DEFAULT_STAFF_PIN,
+        unit: 'Divisi Produksi I',
+        allowedLinkIds: ['*'],
+        aktif: true,
+      };
+      setActiveStaff(autoStaff);
+      setActiveStaffSession(autoStaff);
+    }
+    setStaffEditingTarget(target);
   };
 
   const handleRefresh = async () => {
@@ -211,18 +240,21 @@ export default function App() {
   ];
 
   const structuredLinks = useMemo(() => {
+    const isFullAccess = !isPublicMode && hasFullAccessRole(currentRole);
     const activeStaffAllowedIds = activeStaff ? activeStaff.allowedLinkIds || [] : [];
 
     // Tautan yang tampil:
     // 1. Publik hanya melihat tautan dengan aktif === TRUE
-    // 2. Staf yang sedang login juga dapat melihat tautan miliknya meskipun disembunyikan
+    // 2. Developer/Engineer/Admin (Full Access) melihat seluruh tautan
+    // 3. Staf yang sedang login juga dapat melihat tautan miliknya meskipun disembunyikan
     const visibleLinks = links.filter((l) => {
       const isAktif = String(l.aktif).toUpperCase() === 'TRUE';
       if (isAktif) return true;
+      if (isFullAccess) return true;
       if (activeStaffAllowedIds.includes(l.id)) return true;
       if (l.tipe === 'Grup') {
         const hasAuthorizedChild = links.some(
-          (c) => c.parentId === l.id && activeStaffAllowedIds.includes(c.id)
+          (c) => c.parentId === l.id && (isFullAccess || activeStaffAllowedIds.includes(c.id))
         );
         if (hasAuthorizedChild) return true;
       }
@@ -290,7 +322,7 @@ export default function App() {
       }
       return matchesSearch(item) && matchesCategory(item) && matchesRole(item);
     });
-  }, [links, searchQuery, selectedCategory, filterByRoleOnly, currentRole, activeStaff]);
+  }, [links, searchQuery, selectedCategory, filterByRoleOnly, currentRole, activeStaff, isPublicMode]);
 
   return (
     <div className="min-h-screen bg-[#f1f5f9] text-slate-900 flex flex-col font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
@@ -507,6 +539,19 @@ export default function App() {
 
       {/* 2. Main Content: Vertically Stacked Clean Cards DENGAN JARAK PROPORSONAL (TIDAK BERTUMPUK) */}
       <main className="max-w-xl w-full mx-auto px-4 mt-6 sm:mt-7 space-y-3.5 pb-16 flex-1 min-w-0">
+        {/* Toggle Navigasi Peran Cepat (Memudahkan Developer / Engineer Berganti Peran & Full Akses) */}
+        {!isPublicMode && (
+          <RoleNavToggle
+            currentRole={currentRole}
+            onSelectRole={handleRoleChange}
+            onOpenAdmin={() => setIsAdminOpen(true)}
+            onOpenRbacModal={() => setIsRbacModalOpen(true)}
+            filterByRoleOnly={filterByRoleOnly}
+            onToggleFilterByRole={handleToggleFilterByRole}
+            onTogglePublicPreview={togglePublicMode}
+          />
+        )}
+
         {/* Banner Sesi Staf jika login */}
         {activeStaff && (
           <div className="bg-emerald-600 text-white px-4 py-2.5 rounded-2xl text-xs font-semibold flex items-center justify-between gap-2 shadow-sm border border-emerald-500">
@@ -555,8 +600,15 @@ export default function App() {
         ) : (
           structuredLinks.map((item) => {
             if (item.tipe === 'Grup') {
-              const canEditGroup = activeStaff ? activeStaff.allowedLinkIds.includes(item.id) : false;
-              const childAllowedIds = activeStaff ? activeStaff.allowedLinkIds : [];
+              const canEditGroup =
+                !isPublicMode &&
+                (isFullAccess || (activeStaff ? activeStaff.allowedLinkIds.includes(item.id) : false));
+              const childAllowedIds =
+                !isPublicMode && isFullAccess
+                  ? (item.children || []).map((c) => c.id)
+                  : activeStaff
+                  ? activeStaff.allowedLinkIds
+                  : [];
 
               return (
                 <GroupCard
@@ -565,19 +617,21 @@ export default function App() {
                   onClickLink={handleClickLink}
                   canEditStaffGroup={canEditGroup}
                   canEditStaffChildIds={childAllowedIds}
-                  onStaffEdit={(target) => setStaffEditingTarget(target)}
+                  onStaffEdit={handleInitiateEdit}
                 />
               );
             }
 
-            const canEditSingle = activeStaff ? activeStaff.allowedLinkIds.includes(item.id) : false;
+            const canEditSingle =
+              !isPublicMode &&
+              (isFullAccess || (activeStaff ? activeStaff.allowedLinkIds.includes(item.id) : false));
             return (
               <LinkCard
                 key={item.id}
                 link={item}
                 onClickLink={handleClickLink}
                 canEditByStaff={canEditSingle}
-                onStaffEdit={(target) => setStaffEditingTarget(target)}
+                onStaffEdit={handleInitiateEdit}
               />
             );
           })
@@ -677,13 +731,24 @@ export default function App() {
         showToast={showToast}
       />
 
-      {/* 2. Modal Edit Tautan Khusus Staf (Scoped Authorization) */}
-      {staffEditingTarget && activeStaff && (
+      {/* 2. Modal Edit Tautan Khusus Staf & Developer / Site Engineer (Akses Penuh) */}
+      {staffEditingTarget && (activeStaff || isFullAccess) && (
         <StaffEditLinkModal
           isOpen={!!staffEditingTarget}
           onClose={() => setStaffEditingTarget(null)}
           link={staffEditingTarget}
-          activeStaff={activeStaff}
+          activeStaff={
+            activeStaff || {
+              id: currentRole === 'Developer' ? 'STF-DEV' : 'STF-ENG',
+              nama: currentRole === 'Developer' ? 'Lead Developer / Engineer' : 'Lalu Mahendra (Site Engineer)',
+              jabatan: currentRole,
+              email: 'divisi1.bkr@gmail.com',
+              pin: DEFAULT_STAFF_PIN,
+              unit: 'Divisi Produksi I',
+              allowedLinkIds: ['*'],
+              aktif: true,
+            }
+          }
           onSaved={() => {
             setLinks(getStoredLinks());
           }}
@@ -727,11 +792,7 @@ export default function App() {
         currentRole={currentRole}
         onSelectRole={handleRoleChange}
         filterByRoleOnly={filterByRoleOnly}
-        onToggleFilterByRole={(val) => {
-          setFilterByRoleOnly(val);
-          localStorage.setItem('bkr_filter_role_only', val ? 'true' : 'false');
-          showToast(val ? `Filter khusus peran ${currentRole} diaktifkan` : 'Menampilkan seluruh direktori');
-        }}
+        onToggleFilterByRole={handleToggleFilterByRole}
         onOpenAdmin={() => {
           setIsRbacModalOpen(false);
           setIsAdminOpen(true);
