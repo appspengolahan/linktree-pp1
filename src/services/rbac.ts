@@ -32,25 +32,25 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermission> = {
     title: 'Project Manager Produksi',
     icon: '📋',
     badgeColor: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-    deskripsi: 'Fokus pada monitoring stock persediaan bahan baku (tembakau, cengkeh, blend), progres target batch SPK, dan koordinasi PIC.',
+    deskripsi: 'Akses penuh operasional: monitoring stock persediaan bahan baku (tembakau, cengkeh, blend), edit direktori link & formulir, dan koordinasi PIC.',
     canViewAllLinks: true,
-    canEditLinks: false,
+    canEditLinks: true,
     canAccessGasCenter: true,
     canViewAnalytics: true,
-    canConfigureRoles: false,
-    priorityCategories: ['Operasional & Lini', 'Kontak & Database', 'Kendali Mutu (QC)'],
+    canConfigureRoles: true,
+    priorityCategories: ['Operasional & Lini', 'Formulir & Shift', 'Kendali Mutu (QC)', 'K3LH & SOP', 'Kontak & Database'],
   },
   'Manajer operasional': {
     role: 'Manajer operasional',
     title: 'Manajer Operasional Pabrik',
     icon: '🏭',
     badgeColor: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
-    deskripsi: 'Akses supervisi menyeluruh: evaluasi efisiensi OEE, rekapitulasi ritase harian, kepatuhan K3LH, dan tinjauan analitik performa link hub.',
+    deskripsi: 'Akses supervisi & edit menyeluruh: evaluasi efisiensi OEE, rekapitulasi ritase harian, kepatuhan K3LH, dan manajemen link.',
     canViewAllLinks: true,
-    canEditLinks: false,
+    canEditLinks: true,
     canAccessGasCenter: true,
     canViewAnalytics: true,
-    canConfigureRoles: false,
+    canConfigureRoles: true,
     priorityCategories: ['Operasional & Lini', 'Formulir & Shift', 'Kendali Mutu (QC)', 'K3LH & SOP', 'Kontak & Database'],
   },
   Admin: {
@@ -69,7 +69,13 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermission> = {
 };
 
 export function hasFullAccessRole(role: Role): boolean {
-  return role === 'Developer' || role === 'Site Engineer' || role === 'Admin';
+  return (
+    role === 'Developer' ||
+    role === 'Site Engineer' ||
+    role === 'Project Manager' ||
+    role === 'Manajer operasional' ||
+    role === 'Admin'
+  );
 }
 
 export function isLinkRelevantForRole(link: LinkItem, role: Role): boolean {

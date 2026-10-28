@@ -400,25 +400,59 @@ export function saveUserRole(role: Role): void {
   localStorage.setItem(CACHE_KEY_ROLE, role);
 }
 
+export function normalizeAndFlattenLinks(rawLinks: LinkItem[]): LinkItem[] {
+  if (!Array.isArray(rawLinks)) return [];
+  const flat: LinkItem[] = [];
+  const seenIds = new Set<string>();
+
+  for (const item of rawLinks) {
+    if (!item || !item.id) continue;
+    const { children, ...parentProps } = item;
+    if (!seenIds.has(item.id)) {
+      flat.push({
+        ...parentProps,
+        parentId: parentProps.parentId || '',
+        tipe: parentProps.tipe || 'Link',
+      } as LinkItem);
+      seenIds.add(item.id);
+    }
+    if (children && Array.isArray(children)) {
+      for (const child of children) {
+        if (child && child.id && !seenIds.has(child.id)) {
+          flat.push({
+            ...child,
+            parentId: child.parentId || item.id,
+            tipe: 'Link',
+          });
+          seenIds.add(child.id);
+        }
+      }
+    }
+  }
+  return flat;
+}
+
 export function getStoredLinks(): LinkItem[] {
   try {
     const raw = localStorage.getItem(CACHE_KEY_LINKS);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        return normalizeAndFlattenLinks(parsed);
       }
     }
   } catch (e) {
     console.error('Gagal membaca cache link:', e);
   }
 
-  localStorage.setItem(CACHE_KEY_LINKS, JSON.stringify(INITIAL_LINKS));
-  return INITIAL_LINKS;
+  const initial = normalizeAndFlattenLinks(INITIAL_LINKS);
+  localStorage.setItem(CACHE_KEY_LINKS, JSON.stringify(initial));
+  return initial;
 }
 
 export function saveStoredLinks(links: LinkItem[]): void {
-  localStorage.setItem(CACHE_KEY_LINKS, JSON.stringify(links));
+  const normalized = normalizeAndFlattenLinks(links);
+  localStorage.setItem(CACHE_KEY_LINKS, JSON.stringify(normalized));
 }
 
 export function getStoredStats(): StatistikData {

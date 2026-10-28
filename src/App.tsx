@@ -15,6 +15,8 @@ import {
   Share2,
   Eye,
   Lock,
+  FolderPlus,
+  ListPlus,
 } from 'lucide-react';
 
 import { LinkItem, Role, GasConfig, StatistikData, StaffMember, BannerConfig, DEFAULT_STAFF_PIN } from './types';
@@ -32,6 +34,7 @@ import {
   getStoredBannerConfig,
   saveStoredBannerConfig,
   saveStoredLinks,
+  normalizeAndFlattenLinks,
 } from './services/storage';
 import { fetchGasLinks, postGasRecordClick } from './services/gasApi';
 import { isLinkRelevantForRole, hasFullAccessRole } from './services/rbac';
@@ -154,8 +157,9 @@ export default function App() {
     try {
       const res = await fetchGasLinks(cfg.webAppUrl);
       if (res.success && res.links && res.links.length > 0) {
-        setLinks(res.links);
-        saveStoredLinks(res.links); // Simpan ke cache lokal agar device lain langsung memiliki data terbaru
+        const flat = normalizeAndFlattenLinks(res.links);
+        setLinks(flat);
+        saveStoredLinks(flat); // Simpan ke cache lokal agar device lain langsung memiliki data terbaru
         setGasConfig((prev) => {
           const updated: GasConfig = {
             ...prev,
@@ -179,6 +183,7 @@ export default function App() {
     const isRoleFull = hasFullAccessRole(role);
     showToast(isRoleFull ? `⚡ Peran ${role} Aktif (Akses Penuh)` : `Beralih ke hak akses: ${role}`);
     if (role === 'Admin') {
+      setAdminInitialTab('links');
       setIsAdminOpen(true);
     }
   };
@@ -191,10 +196,15 @@ export default function App() {
 
   const handleInitiateEdit = (target: LinkItem) => {
     if (!activeStaff && isFullAccess) {
-      // Auto-assign sesi Developer / Site Engineer tanpa perlu memasukkan PIN
+      // Auto-assign sesi peran berwenang tanpa perlu memasukkan PIN
       const autoStaff: StaffMember = {
-        id: currentRole === 'Developer' ? 'STF-DEV' : 'STF-ENG',
-        nama: currentRole === 'Developer' ? 'Lead Developer / Engineer' : 'Lalu Mahendra (Site Engineer)',
+        id: `STF-${currentRole.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4)}`,
+        nama:
+          currentRole === 'Developer'
+            ? 'Lead Developer / Engineer'
+            : currentRole === 'Site Engineer'
+            ? 'Lalu Mahendra (Site Engineer)'
+            : `${currentRole} (Full Access)`,
         jabatan: currentRole,
         email: 'divisi1.bkr@gmail.com',
         pin: DEFAULT_STAFF_PIN,
@@ -214,7 +224,9 @@ export default function App() {
       showToast('Menghubungi Google Apps Script...');
       const res = await fetchGasLinks(gasConfig.webAppUrl);
       if (res.success && res.links) {
-        setLinks(res.links);
+        const flat = normalizeAndFlattenLinks(res.links);
+        setLinks(flat);
+        saveStoredLinks(flat);
         showToast('Data berhasil diperbarui dari Google Sheets!');
       } else {
         const local = getStoredLinks();
@@ -264,18 +276,22 @@ export default function App() {
   const structuredLinks = useMemo(() => {
     const isFullAccess = !isPublicMode && hasFullAccessRole(currentRole);
     const activeStaffAllowedIds = activeStaff ? activeStaff.allowedLinkIds || [] : [];
+    const flatAll = normalizeAndFlattenLinks(links);
 
     // Tautan yang tampil:
-    // 1. Publik hanya melihat tautan dengan aktif === TRUE
-    // 2. Developer/Engineer/Admin (Full Access) melihat seluruh tautan
-    // 3. Staf yang sedang login juga dapat melihat tautan miliknya meskipun disembunyikan
-    const visibleLinks = links.filter((l) => {
+    // 1. Publik HANYA melihat tautan & grup dengan aktif === TRUE
+    // 2. Developer/Engineer/Project Manager/Admin (Full Access) melihat seluruh tautan
+    // 3. Staf yang sedang login dapat melihat tautan miliknya
+    const visibleLinks = flatAll.filter((l) => {
       const isAktif = String(l.aktif).toUpperCase() === 'TRUE';
+      if (isPublicMode) {
+        return isAktif;
+      }
       if (isAktif) return true;
       if (isFullAccess) return true;
       if (activeStaffAllowedIds.includes(l.id)) return true;
       if (l.tipe === 'Grup') {
-        const hasAuthorizedChild = links.some(
+        const hasAuthorizedChild = flatAll.some(
           (c) => c.parentId === l.id && (isFullAccess || activeStaffAllowedIds.includes(c.id))
         );
         if (hasAuthorizedChild) return true;
@@ -335,6 +351,15 @@ export default function App() {
     });
 
     return prepared.filter((item) => {
+      // Pada mode publik: jika grup tidak aktif atau grup tidak punya anak aktif & tanpa url, jangan tampilkan
+      if (isPublicMode) {
+        const isAktif = String(item.aktif).toUpperCase() === 'TRUE';
+        if (!isAktif) return false;
+        if (item.tipe === 'Grup' && (!item.children || item.children.length === 0) && !item.url) {
+          return false;
+        }
+      }
+
       if (item.tipe === 'Grup') {
         const groupMatches = matchesSearch(item) && matchesCategory(item) && matchesRole(item);
         const childMatches = (item.children || []).some(
@@ -437,6 +462,17 @@ export default function App() {
               </span>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => {
+                  setAdminInitialTab('links');
+                  setIsAdminOpen(true);
+                }}
+                className="px-2 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                title="Buka panel kelola link & grup"
+              >
+                <ListPlus className="w-3 h-3" />
+                <span>Kelola Link</span>
+              </button>
               <button
                 onClick={() => setIsStaffAuthModalOpen(true)}
                 className="px-2 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-[10px] font-bold"
@@ -619,9 +655,12 @@ export default function App() {
 
               {/* Panel Admin */}
               <button
-                onClick={() => setIsAdminOpen(true)}
+                onClick={() => {
+                  setAdminInitialTab('links');
+                  setIsAdminOpen(true);
+                }}
                 className="hover:text-slate-700 transition-colors cursor-pointer flex items-center gap-1 font-medium"
-                title="Masuk ke Panel Kelola Admin (Passcode)"
+                title="Buka Panel Kelola Admin"
               >
                 <ShieldCheck className="w-3 h-3" />
                 <span>Admin</span>

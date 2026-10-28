@@ -44,8 +44,11 @@ import {
   resetAllStatistics,
   factoryResetAll,
   saveStoredLinks,
+  getUserRole,
+  normalizeAndFlattenLinks,
 } from '../services/storage';
 import { pushGasLink, pushGasDeleteLink, pushGasAllLinks } from '../services/gasApi';
+import { hasFullAccessRole } from '../services/rbac';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -66,12 +69,21 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   onDataChanged,
   initialTab,
 }) => {
+  const currentRole = getUserRole();
+  const isFullRole = hasFullAccessRole(currentRole);
+
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return sessionStorage.getItem('bkr_admin_token') === 'valid';
+    return isFullRole || sessionStorage.getItem('bkr_admin_token') === 'valid';
   });
   const [passcode, setPasscode] = useState('');
   const [passcodeError, setPasscodeError] = useState('');
-  const [activeTab, setActiveTab] = useState<'stats' | 'links' | 'staff'>(initialTab || 'stats');
+  const [activeTab, setActiveTab] = useState<'stats' | 'links' | 'staff'>(initialTab || 'links');
+
+  useEffect(() => {
+    if (isFullRole) {
+      setIsAuthenticated(true);
+    }
+  }, [isFullRole, isOpen]);
 
   useEffect(() => {
     if (initialTab) {
@@ -248,7 +260,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     showToast('Link Sinkronisasi HP tersalin! Buka link ini di WhatsApp/ponsel Anda.');
   };
 
-  const grupList = allLinks.filter((l) => l.tipe === 'Grup');
+  const flatLinks = useMemo(() => normalizeAndFlattenLinks(allLinks), [allLinks]);
+  const grupList = flatLinks.filter((l) => l.tipe === 'Grup');
 
   // ---------- LINK CRUD ----------
   const openAddModal = (parentId = '', tipe: 'Link' | 'Grup' = 'Link') => {
@@ -1038,7 +1051,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
                   <div className="space-y-2">
                     {(() => {
-                      const allTopLevel = allLinks
+                      const allTopLevel = flatLinks
                         .filter((l) => !l.parentId)
                         .sort((a, b) => a.urutan - b.urutan);
 
@@ -1048,14 +1061,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         if (linkVisibilityFilter === 'visible') {
                           if (isAktif) return true;
                           if (item.tipe === 'Grup') {
-                            return allLinks.some((c) => c.parentId === item.id && String(c.aktif).toUpperCase() === 'TRUE');
+                            return flatLinks.some((c) => c.parentId === item.id && String(c.aktif).toUpperCase() === 'TRUE');
                           }
                           return false;
                         }
                         if (linkVisibilityFilter === 'hidden') {
                           if (!isAktif) return true;
                           if (item.tipe === 'Grup') {
-                            return allLinks.some((c) => c.parentId === item.id && String(c.aktif).toUpperCase() !== 'TRUE');
+                            return flatLinks.some((c) => c.parentId === item.id && String(c.aktif).toUpperCase() !== 'TRUE');
                           }
                           return false;
                         }
@@ -1064,7 +1077,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
                       if (filteredTopLevel.length === 0) {
                         return (
-                          <div className="text-center py-8 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-slate-500 text-xs">
+                           <div className="text-center py-8 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-slate-500 text-xs">
                             Tidak ada tautan atau grup dengan filter "{linkVisibilityFilter === 'visible' ? 'Ditampilkan' : linkVisibilityFilter === 'hidden' ? 'Disembunyikan' : 'Semua'}".
                           </div>
                         );
@@ -1075,7 +1088,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         const isLast = idx === filteredTopLevel.length - 1;
                         const isGroup = item.tipe === 'Grup';
                         const isAktif = String(item.aktif).toUpperCase() === 'TRUE';
-                        const children = allLinks
+                        const children = flatLinks
                           .filter((l) => l.parentId === item.id)
                           .sort((a, b) => a.urutan - b.urutan);
 

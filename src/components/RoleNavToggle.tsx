@@ -58,7 +58,7 @@ const ROLE_ITEMS: {
     role: 'Project Manager',
     shortLabel: 'Project Mgr',
     icon: '📋',
-    isFullAccess: false,
+    isFullAccess: true,
     colorScheme: {
       active: 'bg-blue-600 text-white shadow-md shadow-blue-600/30 border-blue-500',
       badge: 'bg-blue-100 text-blue-700 border-blue-200',
@@ -68,7 +68,7 @@ const ROLE_ITEMS: {
     role: 'Manajer operasional',
     shortLabel: 'Manajer Ops',
     icon: '🏭',
-    isFullAccess: false,
+    isFullAccess: true,
     colorScheme: {
       active: 'bg-purple-600 text-white shadow-md shadow-purple-600/30 border-purple-500',
       badge: 'bg-purple-100 text-purple-700 border-purple-200',
