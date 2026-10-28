@@ -311,7 +311,7 @@ export function updateLinkByStaff(
   linkId: string,
   updates: { url?: string; deskripsi?: string; aktif?: boolean; label?: string },
   staff: StaffMember
-): { success: boolean; message: string } {
+): { success: boolean; message: string; updatedLink?: LinkItem } {
   const links = getStoredLinks();
   const target = links.find((l) => l.id === linkId);
   if (!target) {
@@ -341,7 +341,7 @@ export function updateLinkByStaff(
   target.picName = staff.nama;
 
   saveStoredLinks(links);
-  return { success: true, message: `Tautan "${target.label}" berhasil diperbarui oleh ${staff.nama}.` };
+  return { success: true, message: `Tautan "${target.label}" berhasil diperbarui oleh ${staff.nama}.`, updatedLink: target };
 }
 
 // ------------------------------------------------------------

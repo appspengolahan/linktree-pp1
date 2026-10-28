@@ -9,6 +9,7 @@ interface GroupCardProps {
   canEditStaffGroup?: boolean;
   canEditStaffChildIds?: string[];
   onStaffEdit?: (link: LinkItem) => void;
+  isPublicMode?: boolean;
 }
 
 export const GroupCard: React.FC<GroupCardProps> = ({
@@ -18,10 +19,14 @@ export const GroupCard: React.FC<GroupCardProps> = ({
   canEditStaffGroup = false,
   canEditStaffChildIds = [],
   onStaffEdit,
+  isPublicMode = false,
 }) => {
   const [isOpen, setIsOpen] = useState(defaultExpanded);
   const isGroupHidden = String(group.aktif).toUpperCase() !== 'TRUE';
-  const children = group.children || [];
+  const allChildren = group.children || [];
+  const children = isPublicMode
+    ? allChildren.filter((c) => String(c.aktif).toUpperCase() === 'TRUE')
+    : allChildren;
 
   const handleToggle = () => {
     const nextState = !isOpen;

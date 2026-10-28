@@ -17,6 +17,7 @@ import {
   Lock,
   FolderPlus,
   ListPlus,
+  LayoutDashboard,
 } from 'lucide-react';
 
 import { LinkItem, Role, GasConfig, StatistikData, StaffMember, BannerConfig, DEFAULT_STAFF_PIN } from './types';
@@ -44,6 +45,7 @@ import { LinkCard } from './components/LinkCard';
 import { GroupCard } from './components/GroupCard';
 import { RoleNavToggle } from './components/RoleNavToggle';
 import { AdminModal } from './components/AdminModal';
+import { ManagementDashboard } from './components/ManagementDashboard';
 import { GasCenterModal } from './components/GasCenterModal';
 import { RbacModal } from './components/RbacModal';
 import { StaffAuthModal } from './components/StaffAuthModal';
@@ -81,6 +83,14 @@ export default function App() {
   const [adminInitialTab, setAdminInitialTab] = useState<'stats' | 'links' | 'staff'>('stats');
   const [isGasCenterOpen, setIsGasCenterOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // View Mode: 'portal' (Link Tree) vs 'dashboard' (Dedicated Management Dashboard)
+  const [viewMode, setViewMode] = useState<'portal' | 'dashboard'>(() => {
+    if (typeof window === 'undefined') return 'portal';
+    const params = new URLSearchParams(window.location.search);
+    return params.get('view') === 'dashboard' ? 'dashboard' : 'portal';
+  });
+  const [dashboardTab, setDashboardTab] = useState<'links' | 'staff' | 'mystaff' | 'gas' | 'stats'>('links');
 
   // Mode Publik Bersih (URL param: ?mode=public atau ?view=clean)
   const [isPublicMode, setIsPublicMode] = useState<boolean>(() => {
@@ -381,6 +391,47 @@ export default function App() {
     });
   }, [links, searchQuery, selectedCategory, filterByRoleOnly, currentRole, activeStaff, isPublicMode]);
 
+  // Tampilan Dashboard Manajemen Khusus (Developer, Engineer, Project Manager, Admin, & Staf PIC)
+  if (viewMode === 'dashboard') {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
+        <ManagementDashboard
+          currentRole={currentRole}
+          onRoleChange={handleRoleChange}
+          activeStaff={activeStaff}
+          onStaffSessionChange={(s) => setActiveStaff(s)}
+          allLinks={links}
+          stats={stats}
+          gasConfig={gasConfig}
+          onGasConfigUpdated={(cfg) => {
+            setGasConfig(cfg);
+            saveGasConfig(cfg);
+          }}
+          onDataChanged={() => {
+            setLinks(getStoredLinks());
+            setStats(getStoredStats());
+          }}
+          onBackToPortal={() => setViewMode('portal')}
+          onSwitchToPublic={() => {
+            setViewMode('portal');
+            setIsPublicMode(true);
+            const url = new URL(window.location.href);
+            url.searchParams.set('mode', 'public');
+            window.history.replaceState({}, '', url.toString());
+          }}
+          showToast={showToast}
+          initialTab={dashboardTab}
+        />
+        {toastMessage && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 text-white px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 text-xs font-semibold animate-in slide-in-from-bottom duration-200 border border-slate-800">
+            <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f1f5f9] text-slate-900 flex flex-col font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
       {/* 1. Curved Midnight Navy Hero Section (Identitas Resmi Divisi Produksi I PT Batu Karang) */}
@@ -473,13 +524,13 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => {
-                  setAdminInitialTab('links');
-                  setIsAdminOpen(true);
+                  setDashboardTab('links');
+                  setViewMode('dashboard');
                 }}
                 className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors inline-flex items-center gap-1.5 cursor-pointer shrink-0"
-                title="Buka panel lengkap kelola link & staf"
+                title="Buka Dashboard Manajemen & Pengaturan Link"
               >
-                <ListPlus className="w-3.5 h-3.5" />
+                <LayoutDashboard className="w-3.5 h-3.5" />
                 <span>Pengaturan Link</span>
               </button>
 
@@ -512,7 +563,10 @@ export default function App() {
             <RoleNavToggle
               currentRole={currentRole}
               onSelectRole={handleRoleChange}
-              onOpenAdmin={() => setIsAdminOpen(true)}
+              onOpenAdmin={() => {
+                setDashboardTab('links');
+                setViewMode('dashboard');
+              }}
               onOpenRbacModal={() => setIsRbacModalOpen(true)}
               filterByRoleOnly={filterByRoleOnly}
               onToggleFilterByRole={handleToggleFilterByRole}
@@ -533,13 +587,13 @@ export default function App() {
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => {
-                  setAdminInitialTab('links');
-                  setIsAdminOpen(true);
+                  setDashboardTab('mystaff');
+                  setViewMode('dashboard');
                 }}
-                className="px-2 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer"
-                title="Buka panel kelola link & grup"
+                className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                title="Buka Dashboard wewenang staf"
               >
-                <ListPlus className="w-3 h-3" />
+                <LayoutDashboard className="w-3 h-3" />
                 <span>Kelola Link</span>
               </button>
               <button
@@ -598,6 +652,7 @@ export default function App() {
                   canEditStaffGroup={canEditGroup}
                   canEditStaffChildIds={childAllowedIds}
                   onStaffEdit={isPublicMode ? undefined : handleInitiateEdit}
+                  isPublicMode={isPublicMode}
                 />
               );
             }
@@ -627,12 +682,15 @@ export default function App() {
           <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400">
             {/* Akses Internal Tersembunyi & Halus */}
             <button
-              onClick={togglePublicMode}
+              onClick={() => {
+                setDashboardTab('links');
+                setViewMode('dashboard');
+              }}
               className="text-slate-400/50 hover:text-slate-600 transition-colors flex items-center gap-1 cursor-pointer py-1 px-2.5 rounded-lg hover:bg-slate-200/40"
-              title="Masuk ke Mode Kelola Internal"
+              title="Masuk ke Dashboard Manajemen"
             >
               <Lock className="w-3 h-3" />
-              <span>Akses Internal</span>
+              <span>Akses Internal / Dashboard</span>
             </button>
           </div>
         ) : (
@@ -697,9 +755,12 @@ export default function App() {
 
               {/* Status & Pengaturan GAS */}
               <button
-                onClick={() => setIsGasCenterOpen(true)}
+                onClick={() => {
+                  setDashboardTab('gas');
+                  setViewMode('dashboard');
+                }}
                 className="hover:text-slate-700 transition-colors cursor-pointer flex items-center gap-1"
-                title="Konfigurasi Integrasi Google Apps Script"
+                title="Konfigurasi Integrasi Google Apps Script di Dashboard"
               >
                 <span className={`inline-block w-1.5 h-1.5 rounded-full ${gasConfig.webAppUrl ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
                 <span>GAS {gasConfig.webAppUrl ? 'Live' : '0.01s Sync'}</span>
@@ -722,17 +783,17 @@ export default function App() {
                 </>
               )}
 
-              {/* Panel Admin */}
+              {/* Dashboard Manajemen */}
               <button
                 onClick={() => {
-                  setAdminInitialTab('links');
-                  setIsAdminOpen(true);
+                  setDashboardTab('links');
+                  setViewMode('dashboard');
                 }}
-                className="hover:text-slate-700 transition-colors cursor-pointer flex items-center gap-1 font-medium"
-                title="Buka Panel Kelola Admin"
+                className="hover:text-blue-700 text-slate-700 font-bold transition-colors cursor-pointer flex items-center gap-1"
+                title="Buka Dashboard Manajemen & Pengaturan Link"
               >
-                <ShieldCheck className="w-3 h-3" />
-                <span>Admin</span>
+                <LayoutDashboard className="w-3.5 h-3.5 text-blue-600" />
+                <span>Dashboard Manajemen</span>
               </button>
             </div>
           </div>

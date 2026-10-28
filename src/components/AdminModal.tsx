@@ -1119,16 +1119,16 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     {(() => {
                       const allTopLevel = flatLinks
                         .filter((l) => !l.parentId)
-                        .sort((a, b) => a.urutan - b.urutan);
+                        .sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
 
                       const query = linkSearchQuery.toLowerCase().trim();
                       const matchesQuery = (l: LinkItem) => {
                         if (!query) return true;
                         return (
-                          l.label.toLowerCase().includes(query) ||
-                          (l.url && l.url.toLowerCase().includes(query)) ||
-                          (l.deskripsi && l.deskripsi.toLowerCase().includes(query)) ||
-                          (l.kategori && l.kategori.toLowerCase().includes(query))
+                          (l.label || '').toLowerCase().includes(query) ||
+                          (l.url ? l.url.toLowerCase().includes(query) : false) ||
+                          (l.deskripsi ? l.deskripsi.toLowerCase().includes(query) : false) ||
+                          (l.kategori ? l.kategori.toLowerCase().includes(query) : false)
                         );
                       };
 
