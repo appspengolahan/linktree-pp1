@@ -12,6 +12,9 @@ import {
   ArrowRight,
   Pin,
   Edit3,
+  Share2,
+  Eye,
+  Lock,
 } from 'lucide-react';
 
 import { LinkItem, Role, GasConfig, StatistikData, StaffMember, BannerConfig } from './types';
@@ -73,10 +76,41 @@ export default function App() {
   const [isGasCenterOpen, setIsGasCenterOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Mode Publik Bersih (URL param: ?mode=public atau ?view=clean)
+  const [isPublicMode, setIsPublicMode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    return params.get('mode') === 'public' || params.get('view') === 'clean' || params.get('public') === 'true';
+  });
+
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   }, []);
+
+  const togglePublicMode = () => {
+    setIsPublicMode((prev) => {
+      const next = !prev;
+      const url = new URL(window.location.href);
+      if (next) {
+        url.searchParams.set('mode', 'public');
+      } else {
+        url.searchParams.delete('mode');
+        url.searchParams.delete('view');
+        url.searchParams.delete('public');
+      }
+      window.history.replaceState({}, '', url.toString());
+      showToast(next ? 'Beralih ke Pratinjau Tampilan Publik Bersih' : 'Kembali ke Mode Kelola Internal');
+      return next;
+    });
+  };
+
+  const handleCopyPublicLink = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('mode', 'public');
+    navigator.clipboard.writeText(url.toString());
+    showToast('Tautan Publik Bersih berhasil disalin! Siap dibagikan.');
+  };
 
   // Inisialisasi: Load data instan dari LocalStorage (0.01s first paint) & catat visit
   useEffect(() => {
@@ -265,81 +299,142 @@ export default function App() {
         {/* Subtle decorative glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Minimalist Floating Top Utility Bar (Identik dengan Header Web Apps Monitoring Stock) */}
-        <div className="max-w-xl mx-auto flex items-center justify-between text-xs pb-3 mb-3 border-b border-white/10">
-          {/* Status Sinkronisasi GAS (Identik Tombol Auto-Sync Hijau Mint) */}
-          <div
-            onClick={() => setIsGasCenterOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#ecfdf5] border border-[#a7f3d0] hover:bg-[#d1fae5] text-[#047857] cursor-pointer transition-colors text-[11px] font-semibold shadow-2xs"
-            title={gasConfig.webAppUrl ? 'GAS Live terhubung ke Google Sheets' : 'Local Cache 0.01s (Klik untuk atur GAS)'}
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
-            </span>
-            <span>
-              {gasConfig.webAppUrl ? 'GAS Live' : '0.01s Sync'}
-            </span>
+        {/* Floating Top Utility Bar: Berbeda antara Mode Publik Bersih dan Mode Kelola */}
+        {isPublicMode ? (
+          <div className="max-w-xl mx-auto flex items-center justify-between text-xs pb-3 mb-3 border-b border-white/10">
+            <div className="flex items-center gap-2 text-slate-200 text-[11px] font-medium">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-400"></span>
+              </span>
+              <span className="font-semibold text-white tracking-wide">Portal Resmi</span>
+              <span className="text-white/30">|</span>
+              <span className="text-slate-300">PT Batu Karang</span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              {/* Toggle Cari Tautan */}
+              <button
+                onClick={() => {
+                  setIsSearchOpen(!isSearchOpen);
+                  if (isSearchOpen) setSearchQuery('');
+                }}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer border ${
+                  isSearchOpen
+                    ? 'bg-white text-[#0066ff] border-white shadow-xs'
+                    : 'bg-white/10 hover:bg-white/20 text-slate-200 border-white/10'
+                }`}
+                title={isSearchOpen ? 'Tutup Pencarian' : 'Cari Tautan...'}
+              >
+                <Search className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Kembali ke Mode Kelola jika admin sedang pratinjau */}
+              <button
+                onClick={togglePublicMode}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-colors text-[11px] font-semibold cursor-pointer border border-white/10"
+                title="Beralih ke Mode Kelola Internal"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Mode Kelola</span>
+              </button>
+            </div>
           </div>
-
-          <div className="flex items-center gap-1.5">
-            {/* Tombol Ubah Teks Banner Secara Manual */}
-            <button
-              onClick={() => setIsEditBannerOpen(true)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white transition-colors text-[11px] font-semibold cursor-pointer border border-white/10"
-              title="Ubah teks banner secara manual"
+        ) : (
+          <div className="max-w-xl mx-auto flex items-center justify-between text-xs pb-3 mb-3 border-b border-white/10">
+            {/* Status Sinkronisasi GAS (Identik Tombol Auto-Sync Hijau Mint) */}
+            <div
+              onClick={() => setIsGasCenterOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#ecfdf5] border border-[#a7f3d0] hover:bg-[#d1fae5] text-[#047857] cursor-pointer transition-colors text-[11px] font-semibold shadow-2xs"
+              title={gasConfig.webAppUrl ? 'GAS Live terhubung ke Google Sheets' : 'Local Cache 0.01s (Klik untuk atur GAS)'}
             >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Ubah Teks</span>
-            </button>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
+              </span>
+              <span>
+                {gasConfig.webAppUrl ? 'GAS Live' : '0.01s Sync'}
+              </span>
+            </div>
 
-            {/* Toggle Cari Tautan (Opsional) */}
-            <button
-              onClick={() => {
-                setIsSearchOpen(!isSearchOpen);
-                if (isSearchOpen) setSearchQuery('');
-              }}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer border ${
-                isSearchOpen
-                  ? 'bg-white text-[#0066ff] border-white shadow-xs'
-                  : 'bg-white/10 hover:bg-white/20 text-slate-200 border-white/10'
-              }`}
-              title={isSearchOpen ? 'Tutup Pencarian' : 'Cari Tautan...'}
-            >
-              <Search className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              {/* Tombol Salin Link Publik Bersih */}
+              <button
+                onClick={handleCopyPublicLink}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0066ff]/20 hover:bg-[#0066ff]/35 text-sky-200 hover:text-white transition-colors text-[11px] font-semibold cursor-pointer border border-sky-400/40"
+                title="Salin tautan publik bersih khusus pengunjung / umum"
+              >
+                <Share2 className="w-3.5 h-3.5 text-sky-300" />
+                <span className="hidden sm:inline">Link Publik</span>
+              </button>
 
-            {/* Tombol Peran RBAC (Identik Pill Putih di Web Apps Monitoring Stock) */}
-            <button
-              onClick={() => setIsRbacModalOpen(true)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 transition-colors text-[11px] font-semibold cursor-pointer border border-slate-200/90 shadow-2xs"
-              title="Ganti Peran Hak Akses (RBAC)"
-            >
-              <UserCheck className="w-3.5 h-3.5 text-[#0066ff]" />
-              <span className="max-w-[90px] truncate">{currentRole}</span>
-            </button>
+              {/* Tombol Pratinjau Tampilan Publik Bersih */}
+              <button
+                onClick={togglePublicMode}
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 transition-colors cursor-pointer border border-white/10"
+                title="Pratinjau tampilan publik bersih (Clean View)"
+              >
+                <Eye className="w-3.5 h-3.5" />
+              </button>
 
-            {/* Refresh */}
-            <button
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 transition-colors cursor-pointer border border-white/10"
-              title="Segarkan data terbaru"
-            >
-              <RotateCcw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-sky-400' : ''}`} />
-            </button>
+              {/* Tombol Ubah Teks Banner Secara Manual */}
+              <button
+                onClick={() => setIsEditBannerOpen(true)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white transition-colors text-[11px] font-semibold cursor-pointer border border-white/10"
+                title="Ubah teks banner secara manual"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Ubah Teks</span>
+              </button>
 
-            {/* Tombol Akses Admin (Identik Electric Royal Blue #0066ff) */}
-            <button
-              onClick={() => setIsAdminOpen(true)}
-              className="flex items-center gap-1 px-3 py-1 rounded-lg bg-[#0066ff] hover:bg-[#0052cc] text-white font-bold transition-all text-[11px] shadow-xs active:scale-95 cursor-pointer"
-              title="Panel Kelola & Statistik (Passcode)"
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Admin</span>
-            </button>
+              {/* Toggle Cari Tautan (Opsional) */}
+              <button
+                onClick={() => {
+                  setIsSearchOpen(!isSearchOpen);
+                  if (isSearchOpen) setSearchQuery('');
+                }}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer border ${
+                  isSearchOpen
+                    ? 'bg-white text-[#0066ff] border-white shadow-xs'
+                    : 'bg-white/10 hover:bg-white/20 text-slate-200 border-white/10'
+                }`}
+                title={isSearchOpen ? 'Tutup Pencarian' : 'Cari Tautan...'}
+              >
+                <Search className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Tombol Peran RBAC (Identik Pill Putih di Web Apps Monitoring Stock) */}
+              <button
+                onClick={() => setIsRbacModalOpen(true)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-800 transition-colors text-[11px] font-semibold cursor-pointer border border-slate-200/90 shadow-2xs"
+                title="Ganti Peran Hak Akses (RBAC)"
+              >
+                <UserCheck className="w-3.5 h-3.5 text-[#0066ff]" />
+                <span className="max-w-[90px] truncate">{currentRole}</span>
+              </button>
+
+              {/* Refresh */}
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 transition-colors cursor-pointer border border-white/10"
+                title="Segarkan data terbaru"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-sky-400' : ''}`} />
+              </button>
+
+              {/* Tombol Akses Admin (Identik Electric Royal Blue #0066ff) */}
+              <button
+                onClick={() => setIsAdminOpen(true)}
+                className="flex items-center gap-1 px-3 py-1 rounded-lg bg-[#0066ff] hover:bg-[#0052cc] text-white font-bold transition-all text-[11px] shadow-xs active:scale-95 cursor-pointer"
+                title="Panel Kelola & Statistik (Passcode)"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Admin</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Profile Card Header: Logo Sejajar dengan Teks (Kompak & Rendah Sesuai Permintaan) */}
         <div className="max-w-md mx-auto text-center flex flex-col items-center">
@@ -365,15 +460,17 @@ export default function App() {
               </h1>
             </div>
 
-            {/* Tombol Cepat Edit Teks Banner (Pensil) */}
-            <button
-              onClick={() => setIsEditBannerOpen(true)}
-              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-sky-300 hover:text-white transition-colors cursor-pointer shrink-0 ml-0.5 border border-white/10"
-              title="Ubah teks banner ini secara manual"
-              aria-label="Ubah Teks Banner"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-            </button>
+            {/* Tombol Cepat Edit Teks Banner (Pensil) - Disembunyikan di Mode Publik */}
+            {!isPublicMode && (
+              <button
+                onClick={() => setIsEditBannerOpen(true)}
+                className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-sky-300 hover:text-white transition-colors cursor-pointer shrink-0 ml-0.5 border border-white/10"
+                title="Ubah teks banner ini secara manual"
+                aria-label="Ubah Teks Banner"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Deskripsi Subtitle */}
@@ -486,8 +583,8 @@ export default function App() {
           })
         )}
 
-        {/* Akses Cepat Masuk Staf jika belum login */}
-        {!activeStaff && (
+        {/* Akses Cepat Masuk Staf (Hanya di Mode Internal, Disembunyikan di Mode Publik Bersih) */}
+        {!activeStaff && !isPublicMode && (
           <div className="pt-2 text-center">
             <button
               onClick={() => setIsStaffAuthModalOpen(true)}
@@ -500,38 +597,61 @@ export default function App() {
         )}
       </main>
 
-      {/* 3. Footer Sederhana & Bersih (Persis Referensi) */}
+      {/* 3. Footer: Sederhana & Bersih (Persis Referensi) */}
       <footer className="py-6 px-4 text-center text-xs text-slate-400 border-t border-slate-200/60 mt-auto space-y-2">
         <p>© 2026 PT Batu Karang · Divisi Produksi I</p>
-        <div className="flex items-center justify-center gap-3 text-[11px] text-slate-400 flex-wrap">
-          <button
-            onClick={() => setIsEditBannerOpen(true)}
-            className="hover:text-slate-700 transition-colors cursor-pointer"
-          >
-            Ubah Teks Banner
-          </button>
-          <span>·</span>
-          <button
-            onClick={() => setIsAdminOpen(true)}
-            className="hover:text-slate-700 transition-colors cursor-pointer"
-          >
-            Panel Admin
-          </button>
-          <span>·</span>
-          <button
-            onClick={() => setIsRbacModalOpen(true)}
-            className="hover:text-slate-700 transition-colors cursor-pointer"
-          >
-            Hak Akses RBAC
-          </button>
-          <span>·</span>
-          <button
-            onClick={() => setIsGasCenterOpen(true)}
-            className="hover:text-slate-700 transition-colors cursor-pointer"
-          >
-            Integrasi GAS
-          </button>
-        </div>
+        
+        {isPublicMode ? (
+          <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400">
+            {/* Akses Internal Tersembunyi/Sederhana untuk Pengelola */}
+            <button
+              onClick={togglePublicMode}
+              className="text-slate-400/60 hover:text-slate-600 transition-colors flex items-center gap-1 cursor-pointer py-0.5 px-2 rounded"
+              title="Masuk ke Mode Kelola Internal"
+            >
+              <Lock className="w-3 h-3" />
+              <span>Akses Internal</span>
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center gap-3 text-[11px] text-slate-400 flex-wrap">
+            <button
+              onClick={handleCopyPublicLink}
+              className="text-[#0066ff] hover:text-[#0052cc] font-semibold transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <Share2 className="w-3 h-3" />
+              Salin Link Publik
+            </button>
+            <span>·</span>
+            <button
+              onClick={() => setIsEditBannerOpen(true)}
+              className="hover:text-slate-700 transition-colors cursor-pointer"
+            >
+              Ubah Teks Banner
+            </button>
+            <span>·</span>
+            <button
+              onClick={() => setIsAdminOpen(true)}
+              className="hover:text-slate-700 transition-colors cursor-pointer"
+            >
+              Panel Admin
+            </button>
+            <span>·</span>
+            <button
+              onClick={() => setIsRbacModalOpen(true)}
+              className="hover:text-slate-700 transition-colors cursor-pointer"
+            >
+              Hak Akses RBAC
+            </button>
+            <span>·</span>
+            <button
+              onClick={() => setIsGasCenterOpen(true)}
+              className="hover:text-slate-700 transition-colors cursor-pointer"
+            >
+              Integrasi GAS
+            </button>
+          </div>
+        )}
       </footer>
 
       {/* Modals & Popups */}
