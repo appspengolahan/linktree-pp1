@@ -35,6 +35,7 @@ import {
   saveStoredBannerConfig,
   saveStoredLinks,
   normalizeAndFlattenLinks,
+  canStaffEditLink,
 } from './services/storage';
 import { fetchGasLinks, postGasRecordClick } from './services/gasApi';
 import { isLinkRelevantForRole, hasFullAccessRole } from './services/rbac';
@@ -332,9 +333,13 @@ export default function App() {
 
     const prepared = topLevel.map((item) => {
       if (item.tipe === 'Grup') {
-        const myChildren = (childrenByParent[item.id] || []).sort(
-          (a, b) => (Number(a.urutan) || 0) - (Number(b.urutan) || 0)
-        );
+        const rawChildren = childrenByParent[item.id] || [];
+        const myChildren = isPublicMode
+          ? rawChildren.filter((c) => String(c.aktif).toUpperCase() === 'TRUE')
+          : rawChildren;
+
+        myChildren.sort((a, b) => (Number(a.urutan) || 0) - (Number(b.urutan) || 0));
+
         return {
           ...item,
           children: myChildren,
@@ -351,12 +356,17 @@ export default function App() {
     });
 
     return prepared.filter((item) => {
-      // Pada mode publik: jika grup tidak aktif atau grup tidak punya anak aktif & tanpa url, jangan tampilkan
+      // Pada mode publik: jika tautan/grup tidak aktif, atau grup tidak punya anak aktif & tanpa url, JANGAN TAMPILKAN
       if (isPublicMode) {
         const isAktif = String(item.aktif).toUpperCase() === 'TRUE';
         if (!isAktif) return false;
-        if (item.tipe === 'Grup' && (!item.children || item.children.length === 0) && !item.url) {
-          return false;
+        if (item.tipe === 'Grup') {
+          const hasActiveChildren = (item.children || []).some(
+            (c) => String(c.aktif).toUpperCase() === 'TRUE'
+          );
+          if (!hasActiveChildren && !item.url) {
+            return false;
+          }
         }
       }
 
@@ -437,6 +447,65 @@ export default function App() {
 
       {/* 2. Main Content: Vertically Stacked Clean Cards DENGAN JARAK PROPORSONAL (TIDAK BERTUMPUK) */}
       <main className="max-w-xl w-full mx-auto px-4 mt-6 sm:mt-7 space-y-3.5 pb-16 flex-1 min-w-0">
+        {/* Menu Pengaturan & Kelola Link Utama (Hanya Tampil di Mode Internal/Admin) */}
+        {!isPublicMode && (
+          <div className="bg-slate-900 text-white rounded-2xl p-3.5 sm:p-4 shadow-md border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in duration-150">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-blue-600/30 border border-blue-400/40 flex items-center justify-center text-blue-400 shrink-0">
+                <ListPlus className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-extrabold text-xs sm:text-sm text-white">
+                    Menu Pengaturan Link
+                  </h3>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    {currentRole}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                  Tambah link, edit, hapus, sembunyikan link &amp; atur wewenang staf
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setAdminInitialTab('links');
+                  setIsAdminOpen(true);
+                }}
+                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors inline-flex items-center gap-1.5 cursor-pointer shrink-0"
+                title="Buka panel lengkap kelola link & staf"
+              >
+                <ListPlus className="w-3.5 h-3.5" />
+                <span>Pengaturan Link</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={togglePublicMode}
+                className="px-3 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors inline-flex items-center gap-1 cursor-pointer shrink-0"
+                title="Beralih ke pratinjau publik bersih"
+              >
+                <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Pratinjau Publik</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopyPublicLink}
+                className="px-3 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors inline-flex items-center gap-1 cursor-pointer shrink-0"
+                title="Salin link publik bersih untuk dibagikan ke umum"
+              >
+                <Share2 className="w-3.5 h-3.5 text-blue-400" />
+                <span>Salin Link</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Toggle Navigasi Peran Cepat (Hanya muncul jika diaktifkan dari footer oleh Developer/Engineer) */}
         {showRoleNav && !isPublicMode && (
           <div className="animate-in fade-in duration-150">
@@ -453,7 +522,7 @@ export default function App() {
         )}
 
         {/* Banner Sesi Staf jika login */}
-        {activeStaff && (
+        {activeStaff && !isPublicMode && (
           <div className="bg-emerald-600 text-white px-4 py-2.5 rounded-2xl text-xs font-semibold flex items-center justify-between gap-2 shadow-sm border border-emerald-500">
             <div className="flex items-center gap-2 truncate">
               <span className="w-2 h-2 rounded-full bg-white animate-pulse shrink-0"></span>
@@ -475,13 +544,13 @@ export default function App() {
               </button>
               <button
                 onClick={() => setIsStaffAuthModalOpen(true)}
-                className="px-2 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-[10px] font-bold"
+                className="px-2 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-[10px] font-bold cursor-pointer"
               >
                 Ganti PIN
               </button>
               <button
                 onClick={handleStaffLogout}
-                className="px-2 py-1 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-[10px] font-bold"
+                className="px-2 py-1 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-[10px] font-bold cursor-pointer"
               >
                 Keluar
               </button>
@@ -513,12 +582,12 @@ export default function App() {
             if (item.tipe === 'Grup') {
               const canEditGroup =
                 !isPublicMode &&
-                (isFullAccess || (activeStaff ? activeStaff.allowedLinkIds.includes(item.id) : false));
+                (isFullAccess || (activeStaff ? canStaffEditLink(activeStaff, item.id, item) : false));
               const childAllowedIds =
                 !isPublicMode && isFullAccess
                   ? (item.children || []).map((c) => c.id)
-                  : activeStaff
-                  ? activeStaff.allowedLinkIds
+                  : !isPublicMode && activeStaff
+                  ? (item.children || []).filter((c) => canStaffEditLink(activeStaff, c.id, c)).map((c) => c.id)
                   : [];
 
               return (
@@ -528,21 +597,21 @@ export default function App() {
                   onClickLink={handleClickLink}
                   canEditStaffGroup={canEditGroup}
                   canEditStaffChildIds={childAllowedIds}
-                  onStaffEdit={handleInitiateEdit}
+                  onStaffEdit={isPublicMode ? undefined : handleInitiateEdit}
                 />
               );
             }
 
             const canEditSingle =
               !isPublicMode &&
-              (isFullAccess || (activeStaff ? activeStaff.allowedLinkIds.includes(item.id) : false));
+              (isFullAccess || (activeStaff ? canStaffEditLink(activeStaff, item.id, item) : false));
             return (
               <LinkCard
                 key={item.id}
                 link={item}
                 onClickLink={handleClickLink}
                 canEditByStaff={canEditSingle}
-                onStaffEdit={handleInitiateEdit}
+                onStaffEdit={isPublicMode ? undefined : handleInitiateEdit}
               />
             );
           })

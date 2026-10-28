@@ -46,6 +46,7 @@ import {
   saveStoredLinks,
   getUserRole,
   normalizeAndFlattenLinks,
+  setLinkStaffPermissions,
 } from '../services/storage';
 import { pushGasLink, pushGasDeleteLink, pushGasAllLinks } from '../services/gasApi';
 import { hasFullAccessRole } from '../services/rbac';
@@ -124,9 +125,15 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [formUrutan, setFormUrutan] = useState(10);
   const [formAktif, setFormAktif] = useState(true);
   const [formPinned, setFormPinned] = useState(false);
+  const [formAllowedStaffIds, setFormAllowedStaffIds] = useState<string[]>([]);
 
-  // Filter mode tampilan tab kelola link: 'all' | 'visible' | 'hidden'
+  // Modal Khusus Atur Akses Staf Cepat
+  const [assigningStaffTarget, setAssigningStaffTarget] = useState<LinkItem | null>(null);
+  const [assigningStaffIds, setAssigningStaffIds] = useState<string[]>([]);
+
+  // Filter & Pencarian di tab kelola link
   const [linkVisibilityFilter, setLinkVisibilityFilter] = useState<'all' | 'visible' | 'hidden'>('all');
+  const [linkSearchQuery, setLinkSearchQuery] = useState<string>('');
 
   // Trend Chart State (Dynamic Range & Interactive Touch Inspect)
   const [trendRange, setTrendRange] = useState<'7d' | '14d'>('7d');
@@ -276,6 +283,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setFormUrutan((allLinks.length + 1) * 10);
     setFormAktif(true);
     setFormPinned(false);
+    setFormAllowedStaffIds([]);
     setIsFormOpen(true);
   };
 
@@ -291,6 +299,13 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setFormUrutan(link.urutan || 10);
     setFormAktif(String(link.aktif).toUpperCase() === 'TRUE');
     setFormPinned(String(link.pinned).toUpperCase() === 'TRUE');
+
+    // Ambil daftar staf yang berwenang
+    let initialStaffIds = Array.isArray(link.allowedStaffIds) ? [...link.allowedStaffIds] : [];
+    if (initialStaffIds.length === 0) {
+      initialStaffIds = staffList.filter((s) => s.allowedLinkIds?.includes(link.id)).map((s) => s.id);
+    }
+    setFormAllowedStaffIds(initialStaffIds);
     setIsFormOpen(true);
   };
 
@@ -313,9 +328,11 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       pinned: formTipe === 'Grup' ? false : formPinned,
       tipe: formTipe,
       parentId: formTipe === 'Grup' ? '' : formParentId,
+      allowedStaffIds: formAllowedStaffIds,
     };
 
     saveOrUpdateLink(payload);
+    setStaffList(getStoredStaffList());
     setIsFormOpen(false);
     onDataChanged();
     showToast(editingLink ? 'Tautan berhasil diperbarui.' : 'Tautan baru berhasil disimpan.');
@@ -326,6 +343,32 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           showToast('Data otomatis tersinkronkan ke Google Sheets!');
         }
       }).catch(() => {});
+    }
+  };
+
+  const openAssignStaffModal = (item: LinkItem) => {
+    setAssigningStaffTarget(item);
+    let currentStaffIds = Array.isArray(item.allowedStaffIds) ? [...item.allowedStaffIds] : [];
+    if (currentStaffIds.length === 0) {
+      currentStaffIds = staffList.filter((s) => s.allowedLinkIds?.includes(item.id)).map((s) => s.id);
+    }
+    setAssigningStaffIds(currentStaffIds);
+  };
+
+  const handleSaveAssignedStaff = () => {
+    if (!assigningStaffTarget) return;
+    const res = setLinkStaffPermissions(assigningStaffTarget.id, assigningStaffIds);
+    setStaffList(getStoredStaffList());
+    onDataChanged();
+    setAssigningStaffTarget(null);
+    showToast(res.message);
+
+    if (gasConfig.webAppUrl) {
+      pushGasLink(
+        gasConfig.webAppUrl,
+        { ...assigningStaffTarget, allowedStaffIds: assigningStaffIds },
+        gasConfig.adminPasscode
+      ).catch(() => {});
     }
   };
 
@@ -911,13 +954,13 @@ export const AdminModal: React.FC<AdminModalProps> = ({
               {/* TAB 2: KELOLA LINK & GRUP */}
               {activeTab === 'links' && (
                 <div className="space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                  <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pb-3 border-b border-slate-200">
                     {/* Filter Mode Ditampilkan / Disembunyikan */}
-                    <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+                    <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-semibold overflow-x-auto">
                       <button
                         type="button"
                         onClick={() => setLinkVisibilityFilter('all')}
-                        className={`px-3 py-1.5 rounded-lg transition-colors ${
+                        className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
                           linkVisibilityFilter === 'all'
                             ? 'bg-white text-slate-900 shadow-xs font-bold'
                             : 'text-slate-600 hover:text-slate-900'
@@ -928,7 +971,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setLinkVisibilityFilter('visible')}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
                           linkVisibilityFilter === 'visible'
                             ? 'bg-white text-emerald-700 shadow-xs font-bold'
                             : 'text-slate-600 hover:text-slate-900'
@@ -940,7 +983,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setLinkVisibilityFilter('hidden')}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
                           linkVisibilityFilter === 'hidden'
                             ? 'bg-white text-amber-800 shadow-xs font-bold'
                             : 'text-slate-600 hover:text-slate-900'
@@ -952,20 +995,43 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2">
+                      <div className="relative flex-1 md:w-52">
+                        <input
+                          type="text"
+                          value={linkSearchQuery}
+                          onChange={(e) => setLinkSearchQuery(e.target.value)}
+                          placeholder="Cari nama tautan/grup..."
+                          className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-400"
+                        />
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs">🔍</span>
+                        {linkSearchQuery && (
+                          <button
+                            onClick={() => setLinkSearchQuery('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+
                       <button
                         onClick={() => openAddModal('', 'Grup')}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-colors"
+                        className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-colors shrink-0"
+                        title="Tambah grup penampung baru"
                       >
                         <FolderPlus className="w-3.5 h-3.5 text-blue-600" />
-                        <span>+ Tambah Grup</span>
+                        <span className="hidden sm:inline">+ Tambah Grup</span>
+                        <span className="sm:hidden">+ Grup</span>
                       </button>
 
                       <button
                         onClick={() => openAddModal('', 'Link')}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors shrink-0"
+                        title="Tambah link dokumen baru"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        <span>+ Tambah Link</span>
+                        <span className="hidden sm:inline">+ Tambah Link</span>
+                        <span className="sm:hidden">+ Link</span>
                       </button>
                     </div>
                   </div>
@@ -1055,7 +1121,23 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         .filter((l) => !l.parentId)
                         .sort((a, b) => a.urutan - b.urutan);
 
+                      const query = linkSearchQuery.toLowerCase().trim();
+                      const matchesQuery = (l: LinkItem) => {
+                        if (!query) return true;
+                        return (
+                          l.label.toLowerCase().includes(query) ||
+                          (l.url && l.url.toLowerCase().includes(query)) ||
+                          (l.deskripsi && l.deskripsi.toLowerCase().includes(query)) ||
+                          (l.kategori && l.kategori.toLowerCase().includes(query))
+                        );
+                      };
+
                       const filteredTopLevel = allTopLevel.filter((item) => {
+                        const children = flatLinks.filter((c) => c.parentId === item.id);
+                        const selfMatchesQuery = matchesQuery(item);
+                        const childMatchesQuery = children.some((c) => matchesQuery(c));
+                        if (!selfMatchesQuery && !childMatchesQuery) return false;
+
                         if (linkVisibilityFilter === 'all') return true;
                         const isAktif = String(item.aktif).toUpperCase() === 'TRUE';
                         if (linkVisibilityFilter === 'visible') {
@@ -1077,8 +1159,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
                       if (filteredTopLevel.length === 0) {
                         return (
-                           <div className="text-center py-8 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-slate-500 text-xs">
-                            Tidak ada tautan atau grup dengan filter "{linkVisibilityFilter === 'visible' ? 'Ditampilkan' : linkVisibilityFilter === 'hidden' ? 'Disembunyikan' : 'Semua'}".
+                          <div className="text-center py-8 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-slate-500 text-xs">
+                            {linkSearchQuery
+                              ? `Tidak ditemukan tautan atau grup yang cocok dengan "${linkSearchQuery}".`
+                              : `Tidak ada tautan atau grup dengan filter "${linkVisibilityFilter === 'visible' ? 'Ditampilkan' : linkVisibilityFilter === 'hidden' ? 'Disembunyikan' : 'Semua'}".`}
                           </div>
                         );
                       }
@@ -1093,26 +1177,35 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                           .sort((a, b) => a.urutan - b.urutan);
 
                         const filteredChildren = children.filter((child) => {
+                          if (!matchesQuery(child) && !matchesQuery(item)) return false;
                           if (linkVisibilityFilter === 'all') return true;
                           const isChildAktif = String(child.aktif).toUpperCase() === 'TRUE';
                           return linkVisibilityFilter === 'visible' ? isChildAktif : !isChildAktif;
                         });
 
+                        // Cari staf yang berwenang untuk item ini
+                        const authorizedStaff = staffList.filter(
+                          (s) =>
+                            (item.allowedStaffIds || []).includes(s.id) ||
+                            (s.allowedLinkIds || []).includes(item.id) ||
+                            s.allowedLinkIds?.includes('*')
+                        );
+
                         return (
                           <div key={item.id} className="space-y-1.5">
                             <div
-                              className={`rounded-xl p-3 flex items-center justify-between gap-3 transition-all ${
+                              className={`rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
                                 isAktif
                                   ? 'bg-slate-50 border border-slate-200/90 hover:border-blue-300'
                                   : 'bg-amber-50/40 border border-dashed border-amber-300 hover:border-amber-400'
                               }`}
                             >
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <div className="flex flex-col gap-0.5 shrink-0">
+                              <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+                                <div className="flex flex-col gap-0.5 shrink-0 pt-0.5 sm:pt-0">
                                   <button
                                     onClick={() => handleMove(item.id, 'up', '')}
                                     disabled={isFirst}
-                                    className="p-1 rounded text-slate-400 hover:text-slate-800 disabled:opacity-30"
+                                    className="p-1 rounded text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
                                     title="Pindahkan ke atas"
                                   >
                                     <ArrowUp className="w-3 h-3" />
@@ -1120,14 +1213,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                   <button
                                     onClick={() => handleMove(item.id, 'down', '')}
                                     disabled={isLast}
-                                    className="p-1 rounded text-slate-400 hover:text-slate-800 disabled:opacity-30"
+                                    className="p-1 rounded text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
                                     title="Pindahkan ke bawah"
                                   >
                                     <ArrowDown className="w-3 h-3" />
                                   </button>
                                 </div>
 
-                                <span className="text-xl shrink-0">{item.icon || '🔗'}</span>
+                                <span className="text-xl shrink-0 mt-0.5 sm:mt-0">{item.icon || '🔗'}</span>
 
                                 <div className="flex flex-col min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
@@ -1155,26 +1248,67 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                       </span>
                                     )}
                                   </div>
-                                  <span className="text-[11px] text-slate-500 truncate max-w-sm">
-                                    {isGroup ? `${children.length} tautan tersimpan` : item.url}
+
+                                  <span className="text-[11px] text-slate-500 truncate max-w-sm mt-0.5">
+                                    {isGroup ? `${children.length} tautan tersimpan` : item.url || '(Belum ada URL)'}
                                   </span>
+
+                                  {/* Chip Daftar Staf Berwenang */}
+                                  <div className="flex items-center gap-1 flex-wrap mt-1">
+                                    <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-0.5">
+                                      <Users className="w-2.5 h-2.5 text-blue-600" />
+                                      Akses Staf:
+                                    </span>
+                                    {authorizedStaff.length === 0 ? (
+                                      <span className="text-[9px] text-slate-400 italic">
+                                        Hanya Admin &amp; Site Engineer
+                                      </span>
+                                    ) : (
+                                      authorizedStaff.slice(0, 3).map((st) => (
+                                        <span
+                                          key={st.id}
+                                          className="text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.2 rounded-md"
+                                        >
+                                          {st.nama}
+                                        </span>
+                                      ))
+                                    )}
+                                    {authorizedStaff.length > 3 && (
+                                      <span className="text-[9px] text-slate-500 font-bold">
+                                        +{authorizedStaff.length - 3} lainnya
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-1.5 shrink-0">
+                              <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200/60 w-full sm:w-auto justify-end">
                                 {isGroup && (
                                   <button
                                     onClick={() => openAddModal(item.id, 'Link')}
-                                    className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
+                                    className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
                                     title="Tambah link di dalam grup ini"
                                   >
                                     <Plus className="w-4 h-4" />
                                   </button>
                                 )}
+
+                                {/* Tombol Atur Akses Staf */}
+                                <button
+                                  type="button"
+                                  onClick={() => openAssignStaffModal(item)}
+                                  className="px-2 py-1.5 rounded-lg text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-xs font-bold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                                  title="Atur siapa staf yang berhak mengisi dan mengedit link/grup ini"
+                                >
+                                  <Users className="w-3.5 h-3.5 text-blue-600" />
+                                  <span className="text-[11px]">Akses Staf</span>
+                                </button>
+
                                 {/* Tombol Toggle Cepat Mode Visibilitas */}
                                 <button
+                                  type="button"
                                   onClick={() => handleToggleVisibility(item)}
-                                  className={`p-1.5 rounded-lg transition-colors ${
+                                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                                     isAktif
                                       ? 'text-emerald-700 hover:bg-emerald-50'
                                       : 'text-amber-700 hover:bg-amber-100'
@@ -1187,17 +1321,23 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 >
                                   {isAktif ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                                 </button>
+
+                                {/* Tombol Edit Link */}
                                 <button
+                                  type="button"
                                   onClick={() => openEditModal(item)}
-                                  className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition-colors"
-                                  title="Edit tautan"
+                                  className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 transition-colors cursor-pointer"
+                                  title="Edit tautan / grup ini"
                                 >
                                   <Edit2 className="w-4 h-4" />
                                 </button>
+
+                                {/* Tombol Hapus Link */}
                                 <button
+                                  type="button"
                                   onClick={() => handleDelete(item.id, item.label, isGroup)}
-                                  className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors"
-                                  title="Hapus tautan"
+                                  className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                  title="Hapus tautan / grup ini"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
@@ -1206,34 +1346,41 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
                             {/* Baris Anak di dalam Grup */}
                             {isGroup && filteredChildren.length > 0 && (
-                              <div className="ml-8 space-y-1.5 border-l-2 border-blue-200 pl-3">
+                              <div className="ml-4 sm:ml-8 space-y-1.5 border-l-2 border-blue-200 pl-2.5 sm:pl-3">
                                 {filteredChildren.map((child, childIdx) => {
                                   const isChildFirst = childIdx === 0;
                                   const isChildLast = childIdx === filteredChildren.length - 1;
                                   const isChildAktif = String(child.aktif).toUpperCase() === 'TRUE';
 
+                                  const childStaff = staffList.filter(
+                                    (s) =>
+                                      (child.allowedStaffIds || []).includes(s.id) ||
+                                      (s.allowedLinkIds || []).includes(child.id) ||
+                                      s.allowedLinkIds?.includes('*')
+                                  );
+
                                   return (
                                     <div
                                       key={child.id}
-                                      className={`rounded-lg p-2.5 flex items-center justify-between gap-3 text-xs transition-colors ${
+                                      className={`rounded-lg p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs transition-colors ${
                                         isChildAktif
                                           ? 'bg-white border border-slate-200'
                                           : 'bg-amber-50/50 border border-dashed border-amber-300'
                                       }`}
                                     >
-                                      <div className="flex items-center gap-2 min-w-0">
-                                        <div className="flex flex-col gap-0.5 shrink-0">
+                                      <div className="flex items-start sm:items-center gap-2 min-w-0">
+                                        <div className="flex flex-col gap-0.5 shrink-0 pt-0.5 sm:pt-0">
                                           <button
                                             onClick={() => handleMove(child.id, 'up', item.id)}
                                             disabled={isChildFirst}
-                                            className="p-0.5 rounded text-slate-400 hover:text-slate-800 disabled:opacity-30"
+                                            className="p-0.5 rounded text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
                                           >
                                             <ArrowUp className="w-2.5 h-2.5" />
                                           </button>
                                           <button
                                             onClick={() => handleMove(child.id, 'down', item.id)}
                                             disabled={isChildLast}
-                                            className="p-0.5 rounded text-slate-400 hover:text-slate-800 disabled:opacity-30"
+                                            className="p-0.5 rounded text-slate-400 hover:text-slate-800 disabled:opacity-30 cursor-pointer"
                                           >
                                             <ArrowDown className="w-2.5 h-2.5" />
                                           </button>
@@ -1255,17 +1402,53 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                               </span>
                                             )}
                                           </div>
-                                          <span className="text-[10px] text-slate-400 truncate max-w-xs">
-                                            {child.url}
+                                          <span className="text-[10px] text-slate-400 truncate max-w-xs mt-0.5">
+                                            {child.url || '(Belum ada URL)'}
                                           </span>
+
+                                          {/* Chip Staf Berwenang untuk Anak */}
+                                          <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                                            <span className="text-[9px] text-slate-400">Akses Staf:</span>
+                                            {childStaff.length === 0 ? (
+                                              <span className="text-[9px] text-slate-400 italic">
+                                                Hanya Admin &amp; Engineer
+                                              </span>
+                                            ) : (
+                                              childStaff.slice(0, 2).map((st) => (
+                                                <span
+                                                  key={st.id}
+                                                  className="text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-1 py-0.1 rounded"
+                                                >
+                                                  {st.nama}
+                                                </span>
+                                              ))
+                                            )}
+                                            {childStaff.length > 2 && (
+                                              <span className="text-[9px] text-slate-500 font-bold">
+                                                +{childStaff.length - 2}
+                                              </span>
+                                            )}
+                                          </div>
                                         </div>
                                       </div>
 
-                                      <div className="flex items-center gap-1 shrink-0">
+                                      <div className="flex items-center gap-1 shrink-0 self-end sm:self-center border-t sm:border-t-0 pt-1.5 sm:pt-0 border-slate-100 w-full sm:w-auto justify-end">
+                                        {/* Atur Staf Anak */}
+                                        <button
+                                          type="button"
+                                          onClick={() => openAssignStaffModal(child)}
+                                          className="p-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer"
+                                          title="Atur hak akses staf untuk tautan ini"
+                                        >
+                                          <Users className="w-3 h-3 text-blue-600" />
+                                          <span>Akses Staf</span>
+                                        </button>
+
                                         {/* Toggle Cepat Anak */}
                                         <button
+                                          type="button"
                                           onClick={() => handleToggleVisibility(child)}
-                                          className={`p-1 rounded transition-colors ${
+                                          className={`p-1 rounded transition-colors cursor-pointer ${
                                             isChildAktif
                                               ? 'text-emerald-700 hover:bg-emerald-50'
                                               : 'text-amber-700 hover:bg-amber-100'
@@ -1283,15 +1466,17 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                           )}
                                         </button>
                                         <button
+                                          type="button"
                                           onClick={() => openEditModal(child)}
-                                          className="p-1 rounded text-slate-500 hover:bg-slate-100"
+                                          className="p-1 rounded text-slate-500 hover:bg-slate-100 cursor-pointer"
                                           title="Edit link anak"
                                         >
                                           <Edit2 className="w-3.5 h-3.5" />
                                         </button>
                                         <button
+                                          type="button"
                                           onClick={() => handleDelete(child.id, child.label, false)}
-                                          className="p-1 rounded text-rose-600 hover:bg-rose-50"
+                                          className="p-1 rounded text-rose-600 hover:bg-rose-50 cursor-pointer"
                                           title="Hapus link anak"
                                         >
                                           <Trash2 className="w-3.5 h-3.5" />
@@ -1648,7 +1833,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         type="checkbox"
                         checked={formPinned}
                         onChange={(e) => setFormPinned(e.target.checked)}
-                        className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 w-4 h-4"
+                        className="rounded border-slate-300 text-amber-600 focus:ring-amber-500 w-4 h-4 cursor-pointer"
                       />
                       <span className="flex items-center gap-1">
                         <Pin className="w-3.5 h-3.5" />
@@ -1658,22 +1843,234 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                   )}
                 </div>
 
+                {/* Section Wewenang Akses Edit Staf (PIC) */}
+                <div className="pt-3 border-t border-slate-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1.5">
+                    <label className="block font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                      <Users className="w-4 h-4 text-blue-600" />
+                      <span>Atur Staf yang Diberi Akses Edit ({formAllowedStaffIds.length} staf dipilih)</span>
+                    </label>
+                    <div className="flex gap-1.5 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setFormAllowedStaffIds(staffList.map((s) => s.id))}
+                        className="text-blue-600 hover:underline font-bold cursor-pointer"
+                      >
+                        Pilih Semua
+                      </button>
+                      <span className="text-slate-300">|</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const matched = staffList.filter((s) => s.unit === formKategori).map((s) => s.id);
+                          setFormAllowedStaffIds(matched);
+                        }}
+                        className="text-emerald-700 hover:underline font-bold cursor-pointer"
+                        title="Otomatis pilih staf yang bertugas di unit ini"
+                      >
+                        Sesuai Unit
+                      </button>
+                      <span className="text-slate-300">|</span>
+                      <button
+                        type="button"
+                        onClick={() => setFormAllowedStaffIds([])}
+                        className="text-slate-500 hover:underline cursor-pointer"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mb-2">
+                    Tentukan siapa saja staf yang boleh memperbarui URL dan informasi tautan ini saat mereka masuk dengan PIN staf masing-masing.
+                  </p>
+
+                  <div className="max-h-44 overflow-y-auto border border-slate-200 rounded-xl p-2 bg-slate-50 space-y-1 custom-scrollbar">
+                    {staffList.map((st) => {
+                      const isChecked = formAllowedStaffIds.includes(st.id);
+                      return (
+                        <label
+                          key={st.id}
+                          className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer transition-colors ${
+                            isChecked
+                              ? 'bg-blue-100/70 border border-blue-200 text-blue-900 font-semibold'
+                              : 'hover:bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                setFormAllowedStaffIds((prev) =>
+                                  prev.includes(st.id) ? prev.filter((id) => id !== st.id) : [...prev, st.id]
+                                );
+                              }}
+                              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                            <div className="min-w-0">
+                              <span className="text-xs truncate block">{st.nama}</span>
+                              <span className="text-[10px] text-slate-500 block truncate">
+                                {st.jabatan} · {st.unit}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="text-[9px] font-mono text-slate-400 bg-white/80 px-1.5 py-0.5 rounded border border-slate-200 shrink-0">
+                            {st.id}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="pt-4 flex items-center justify-end gap-2 border-t border-slate-100">
                   <button
                     type="button"
                     onClick={() => setIsFormOpen(false)}
-                    className="px-4 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 font-semibold text-slate-600 transition-colors"
+                    className="px-4 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 font-semibold text-slate-600 transition-colors cursor-pointer"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-colors shadow-xs"
+                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-colors shadow-xs cursor-pointer"
                   >
                     Simpan Perubahan
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Khusus Cepat: Atur Akses Staf Langsung */}
+        {assigningStaffTarget && (
+          <div className="fixed inset-0 z-70 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-sm sm:text-base text-slate-900 leading-tight">
+                      Atur Hak Akses Edit Staf
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Tentukan staf yang berhak mengisi/mengedit tautan ini
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAssigningStaffTarget(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Target info */}
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-2.5">
+                <span className="text-xl">{assigningStaffTarget.icon || '🔗'}</span>
+                <div className="min-w-0">
+                  <span className="font-bold text-xs text-slate-900 block truncate">
+                    {assigningStaffTarget.label}
+                  </span>
+                  <span className="text-[10px] text-slate-500 block truncate">
+                    {assigningStaffTarget.kategori} · ID: {assigningStaffTarget.id}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-700">
+                  Daftar Staf ({assigningStaffIds.length} dipilih):
+                </span>
+                <div className="flex gap-2 text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => setAssigningStaffIds(staffList.map((s) => s.id))}
+                    className="text-blue-600 hover:underline font-bold cursor-pointer"
+                  >
+                    Pilih Semua
+                  </button>
+                  <span className="text-slate-300">|</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const matched = staffList.filter((s) => s.unit === assigningStaffTarget.kategori).map((s) => s.id);
+                      setAssigningStaffIds(matched);
+                    }}
+                    className="text-emerald-700 hover:underline font-bold cursor-pointer"
+                  >
+                    Sesuai Unit
+                  </button>
+                  <span className="text-slate-300">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setAssigningStaffIds([])}
+                    className="text-slate-500 hover:underline cursor-pointer"
+                  >
+                    Kosongkan
+                  </button>
+                </div>
+              </div>
+
+              <div className="max-h-56 overflow-y-auto border border-slate-200 rounded-xl p-2 bg-slate-50/50 space-y-1.5 custom-scrollbar">
+                {staffList.map((st) => {
+                  const isChecked = assigningStaffIds.includes(st.id);
+                  return (
+                    <label
+                      key={st.id}
+                      className={`flex items-center justify-between p-2 rounded-xl text-xs cursor-pointer transition-colors ${
+                        isChecked
+                          ? 'bg-blue-100/80 border border-blue-300 text-blue-900 font-semibold'
+                          : 'hover:bg-slate-100 text-slate-700 border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            setAssigningStaffIds((prev) =>
+                              prev.includes(st.id) ? prev.filter((id) => id !== st.id) : [...prev, st.id]
+                            );
+                          }}
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                        />
+                        <div className="min-w-0">
+                          <span className="text-xs truncate block">{st.nama}</span>
+                          <span className="text-[10px] text-slate-500 block truncate">
+                            {st.jabatan} ({st.unit})
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-mono text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-200 shrink-0">
+                        {st.id}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setAssigningStaffTarget(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-xs font-semibold text-slate-600 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAssignedStaff}
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+                >
+                  Simpan Wewenang
+                </button>
+              </div>
             </div>
           </div>
         )}

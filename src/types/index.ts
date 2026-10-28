@@ -50,6 +50,7 @@ export interface LinkItem {
   children?: LinkItem[];
   targetRoles?: Role[];
   picName?: string; // Nama PIC penanggung jawab unit
+  allowedStaffIds?: string[]; // Daftar ID staf yang berhak mengedit tautan ini
 }
 
 export interface GasConfig {

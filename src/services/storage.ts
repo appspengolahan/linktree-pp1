@@ -287,15 +287,20 @@ export function deleteStoredStaff(id: string): { success: boolean } {
 }
 
 // Cek Apakah Staf Memiliki Izin Mengedit Link Tertentu
-export function canStaffEditLink(staff: StaffMember | null, linkId: string): boolean {
+export function canStaffEditLink(staff: StaffMember | null, linkId: string, linkItem?: LinkItem): boolean {
   if (!staff || !staff.aktif) return false;
-  // Akses penuh untuk Developer, Site Engineer, Admin, atau wildcard '*'
+  // Akses penuh untuk Developer, Site Engineer, Admin, Project Manager, Manajer operasional, atau wildcard '*'
   if (
     staff.allowedLinkIds.includes('*') ||
     staff.jabatan === 'Developer' ||
     staff.jabatan === 'Site Engineer' ||
-    staff.jabatan === 'Admin'
+    staff.jabatan === 'Admin' ||
+    staff.jabatan === 'Project Manager' ||
+    staff.jabatan === 'Manajer operasional'
   ) {
+    return true;
+  }
+  if (linkItem && Array.isArray(linkItem.allowedStaffIds) && linkItem.allowedStaffIds.includes(staff.id)) {
     return true;
   }
   return Array.isArray(staff.allowedLinkIds) && staff.allowedLinkIds.includes(linkId);
@@ -307,14 +312,14 @@ export function updateLinkByStaff(
   updates: { url?: string; deskripsi?: string; aktif?: boolean; label?: string },
   staff: StaffMember
 ): { success: boolean; message: string } {
-  if (!canStaffEditLink(staff, linkId)) {
-    return { success: false, message: 'Anda tidak memiliki hak wewenang untuk mengedit tautan ini.' };
-  }
-
   const links = getStoredLinks();
   const target = links.find((l) => l.id === linkId);
   if (!target) {
     return { success: false, message: 'Tautan tidak ditemukan.' };
+  }
+
+  if (!canStaffEditLink(staff, linkId, target)) {
+    return { success: false, message: 'Anda tidak memiliki hak wewenang untuk mengedit tautan ini.' };
   }
 
   const now = new Date();
@@ -413,6 +418,7 @@ export function normalizeAndFlattenLinks(rawLinks: LinkItem[]): LinkItem[] {
         ...parentProps,
         parentId: parentProps.parentId || '',
         tipe: parentProps.tipe || 'Link',
+        allowedStaffIds: parentProps.allowedStaffIds || [],
       } as LinkItem);
       seenIds.add(item.id);
     }
@@ -423,6 +429,7 @@ export function normalizeAndFlattenLinks(rawLinks: LinkItem[]): LinkItem[] {
             ...child,
             parentId: child.parentId || item.id,
             tipe: 'Link',
+            allowedStaffIds: child.allowedStaffIds || [],
           });
           seenIds.add(child.id);
         }
@@ -599,6 +606,8 @@ export function saveOrUpdateLink(link: Partial<LinkItem>): { success: boolean; i
   const prefix = isGroup ? 'GRP' : 'LNK';
   const newId = link.id || `${prefix}-${Date.now().toString().slice(-6)}`;
 
+  const existingIdx = links.findIndex((l) => l.id === newId);
+
   const itemToSave: LinkItem = {
     id: newId,
     label: (link.label || '').trim(),
@@ -614,9 +623,13 @@ export function saveOrUpdateLink(link: Partial<LinkItem>): { success: boolean; i
     tipe: isGroup ? 'Grup' : 'Link',
     parentId: isGroup ? '' : (link.parentId || ''),
     picName: link.picName || '',
+    allowedStaffIds: Array.isArray(link.allowedStaffIds)
+      ? link.allowedStaffIds
+      : existingIdx !== -1
+      ? links[existingIdx].allowedStaffIds || []
+      : [],
   };
 
-  const existingIdx = links.findIndex((l) => l.id === newId);
   if (existingIdx !== -1) {
     itemToSave.klik = links[existingIdx].klik;
     links[existingIdx] = itemToSave;
@@ -626,11 +639,66 @@ export function saveOrUpdateLink(link: Partial<LinkItem>): { success: boolean; i
 
   saveStoredLinks(links);
 
+  // Sinkronisasi otomatis ke daftar staf (Staff Member allowedLinkIds)
+  if (Array.isArray(link.allowedStaffIds)) {
+    try {
+      const staffList = getStoredStaffList();
+      let staffUpdated = false;
+      staffList.forEach((st) => {
+        if (st.allowedLinkIds.includes('*')) return;
+        const shouldHave = link.allowedStaffIds!.includes(st.id);
+        const currentlyHas = st.allowedLinkIds.includes(newId);
+        if (shouldHave && !currentlyHas) {
+          st.allowedLinkIds.push(newId);
+          staffUpdated = true;
+        } else if (!shouldHave && currentlyHas) {
+          st.allowedLinkIds = st.allowedLinkIds.filter((id) => id !== newId);
+          staffUpdated = true;
+        }
+      });
+      if (staffUpdated) {
+        saveStoredStaffList(staffList);
+      }
+    } catch (e) {
+      console.error('Gagal sinkronisasi hak staf:', e);
+    }
+  }
+
   const stats = getStoredStats();
   stats.totalLinkAktif = links.filter((l) => String(l.aktif).toUpperCase() === 'TRUE' && l.tipe !== 'Grup').length;
   saveStoredStats(stats);
 
   return { success: true, id: newId };
+}
+
+// Atur Hak Akses Staf Khusus untuk Suatu Tautan
+export function setLinkStaffPermissions(linkId: string, staffIds: string[]): { success: boolean; message: string } {
+  const links = getStoredLinks();
+  const link = links.find((l) => l.id === linkId);
+  if (!link) return { success: false, message: 'Tautan tidak ditemukan.' };
+
+  link.allowedStaffIds = staffIds;
+  saveStoredLinks(links);
+
+  // Sinkronkan ke staffList
+  try {
+    const staffList = getStoredStaffList();
+    staffList.forEach((st) => {
+      if (st.allowedLinkIds.includes('*')) return;
+      const shouldHave = staffIds.includes(st.id);
+      const currentlyHas = st.allowedLinkIds.includes(linkId);
+      if (shouldHave && !currentlyHas) {
+        st.allowedLinkIds.push(linkId);
+      } else if (!shouldHave && currentlyHas) {
+        st.allowedLinkIds = st.allowedLinkIds.filter((id) => id !== linkId);
+      }
+    });
+    saveStoredStaffList(staffList);
+  } catch (e) {
+    console.error('Gagal sinkronisasi hak staf:', e);
+  }
+
+  return { success: true, message: `Hak akses staf untuk "${link.label}" berhasil diperbarui.` };
 }
 
 // Toggle Cepat Status Ditampilkan / Disembunyikan (Aktif / Nonaktif)
