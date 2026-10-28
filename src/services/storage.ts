@@ -343,11 +343,13 @@ export function updateLinkByStaff(
 // GENERAL APP CONFIG & LINKS
 // ------------------------------------------------------------
 
+export const PRODUCTION_GAS_URL = 'https://script.google.com/macros/s/AKfycbyJUOR2Tfxwazv2wdOLCSqAUNu6P4GSLLNVZy8E6Ps-oQ_skI8yRxvmLdu5FJ7TAUMKsQ/exec';
+
 export function getGasConfig(): GasConfig {
-  let defaultUrl = '';
+  let defaultUrl = PRODUCTION_GAS_URL;
   try {
     if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GAS_URL) {
-      defaultUrl = String(import.meta.env.VITE_GAS_URL).trim();
+      defaultUrl = String(import.meta.env.VITE_GAS_URL).trim() || PRODUCTION_GAS_URL;
     }
   } catch {
     // ignore
@@ -357,7 +359,7 @@ export function getGasConfig(): GasConfig {
     const raw = localStorage.getItem(CACHE_KEY_CONFIG);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (!parsed.webAppUrl && defaultUrl) {
+      if (!parsed.webAppUrl) {
         parsed.webAppUrl = defaultUrl;
       }
       return parsed;
@@ -366,11 +368,11 @@ export function getGasConfig(): GasConfig {
     console.error('Gagal membaca GAS config:', e);
   }
   return {
-    webAppUrl: defaultUrl || '',
+    webAppUrl: defaultUrl,
     adminPasscode: 'bkr153',
     autoSync: true,
     syncIntervalMinutes: 5,
-    syncStatus: defaultUrl ? 'online' : 'cached',
+    syncStatus: 'online',
   };
 }
 
