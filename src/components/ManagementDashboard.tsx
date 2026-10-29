@@ -168,6 +168,48 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
   const [trendRange, setTrendRange] = useState<'7d' | '14d'>('7d');
   const [selectedDayIdx, setSelectedDayIdx] = useState<number | null>(null);
 
+  // Central Pop-up Dialog State (Pengganti window.confirm / window.alert native browser)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    isAlertOnly?: boolean;
+    onConfirm: () => void;
+  } | null>(null);
+
+  const openConfirm = (
+    message: string,
+    onConfirm: () => void,
+    options?: { title?: string; confirmLabel?: string; cancelLabel?: string; isAlertOnly?: boolean }
+  ) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: options?.title || 'linktree pp1 Says',
+      message,
+      confirmLabel: options?.confirmLabel || 'OK',
+      cancelLabel: options?.cancelLabel || 'Cancel',
+      isAlertOnly: options?.isAlertOnly || false,
+      onConfirm: () => {
+        setConfirmDialog(null);
+        onConfirm();
+      },
+    });
+  };
+
+  const showAlert = (message: string, title = 'linktree pp1 Says') => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      confirmLabel: 'OK',
+      cancelLabel: '',
+      isAlertOnly: true,
+      onConfirm: () => setConfirmDialog(null),
+    });
+  };
+
   // Normalize links flatly
   const flatLinks = useMemo(() => normalizeAndFlattenLinks(allLinks), [allLinks]);
   const groupItems = useMemo(() => flatLinks.filter((l) => l.tipe === 'Grup'), [flatLinks]);
@@ -282,11 +324,11 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
   const handleSaveLinkForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formLabel.trim()) {
-      alert('Nama tautan atau grup tidak boleh kosong.');
+      showAlert('Nama tautan atau grup tidak boleh kosong.');
       return;
     }
     if (formTipe === 'Link' && !formUrl.trim()) {
-      alert('URL tautan wajib diisi untuk dokumen/link.');
+      showAlert('URL tautan wajib diisi untuk dokumen/link.');
       return;
     }
 
@@ -342,16 +384,16 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
       ? `Hapus grup "${item.label}" beserta seluruh tautan di dalamnya? Tindakan ini tidak dapat dibatalkan.`
       : `Hapus tautan "${item.label}"?`;
 
-    if (!window.confirm(msg)) return;
-
-    const res = deleteStoredLink(item.id);
-    if (res.success) {
-      showToast(`Berhasil menghapus ${res.deletedCount} item.`);
-      onDataChanged();
-      if (gasConfig.webAppUrl) {
-        pushGasDeleteLink(gasConfig.webAppUrl, item.id, gasConfig.adminPasscode).catch(() => {});
+    openConfirm(msg, () => {
+      const res = deleteStoredLink(item.id);
+      if (res.success) {
+        showToast(`Berhasil menghapus ${res.deletedCount} item.`);
+        onDataChanged();
+        if (gasConfig.webAppUrl) {
+          pushGasDeleteLink(gasConfig.webAppUrl, item.id, gasConfig.adminPasscode).catch(() => {});
+        }
       }
-    }
+    });
   };
 
   const handleMoveUrutan = (id: string, direction: 'up' | 'down', parentId = '') => {
@@ -434,7 +476,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
   const handleSaveStaff = (e: React.FormEvent) => {
     e.preventDefault();
     if (!staffNama.trim() || !staffJabatan.trim()) {
-      alert('Nama dan Jabatan staf wajib diisi.');
+      showAlert('Nama dan Jabatan staf wajib diisi.');
       return;
     }
 
@@ -457,13 +499,15 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
   };
 
   const handleDeleteStaff = (staff: StaffMember) => {
-    if (!window.confirm(`Hapus akses staf ${staff.nama} (${staff.jabatan})? Staf tidak akan dapat login lagi.`)) {
-      return;
-    }
-    deleteStoredStaff(staff.id);
-    setStaffList(getStoredStaffList());
-    onDataChanged();
-    showToast(`Staf ${staff.nama} berhasil dihapus.`);
+    openConfirm(
+      `Hapus akses staf ${staff.nama} (${staff.jabatan})? Staf tidak akan dapat login lagi.`,
+      () => {
+        deleteStoredStaff(staff.id);
+        setStaffList(getStoredStaffList());
+        onDataChanged();
+        showToast(`Staf ${staff.nama} berhasil dihapus.`);
+      }
+    );
   };
 
   const handleExecuteResetPin = () => {
@@ -476,16 +520,14 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
   };
 
   const handleResetAllPins = () => {
-    if (
-      !window.confirm(
-        `PERINGATAN SUPER ADMIN:\n\nReset PIN seluruh staf (${staffList.length} orang) ke PIN awal pabrik (${DEFAULT_STAFF_PIN})?`
-      )
-    ) {
-      return;
-    }
-    const res = resetAllStaffPinsToDefault();
-    setStaffList(getStoredStaffList());
-    showToast(res.message);
+    openConfirm(
+      `PERINGATAN SUPER ADMIN:\n\nReset PIN seluruh staf (${staffList.length} orang) ke PIN awal pabrik (${DEFAULT_STAFF_PIN})?`,
+      () => {
+        const res = resetAllStaffPinsToDefault();
+        setStaffList(getStoredStaffList());
+        showToast(res.message);
+      }
+    );
   };
 
   // ---------------- Handlers: Staff Personal Workspace ----------------
@@ -501,7 +543,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
     if (!staffFastEditItem || !activeStaff) return;
 
     if (!fastEditUrl.trim()) {
-      alert('URL tautan tidak boleh kosong.');
+      showAlert('URL tautan tidak boleh kosong.');
       return;
     }
 
@@ -524,7 +566,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
         pushGasLink(gasConfig.webAppUrl, res.updatedLink, gasConfig.adminPasscode).catch(() => {});
       }
     } else {
-      alert(res.message);
+      showAlert(res.message);
     }
   };
 
@@ -557,7 +599,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
   // ---------------- Handlers: GAS Sync & Backup ----------------
   const handlePullFromSheets = async () => {
     if (!gasConfig.webAppUrl) {
-      alert('URL Web App Google Apps Script belum diisi.');
+      showAlert('URL Web App Google Apps Script belum diisi.');
       return;
     }
     setIsSyncingGas(true);
@@ -572,37 +614,39 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
         onGasConfigUpdated(updatedConfig);
         showToast(`Berhasil menarik ${flat.length} data terbaru dari Google Sheets!`);
       } else {
-        alert('Gagal mengambil data dari Google Sheets: ' + (res.error || 'Periksa koneksi'));
+        showAlert('Gagal mengambil data dari Google Sheets: ' + (res.error || 'Periksa koneksi'));
       }
     } catch (e) {
       setIsSyncingGas(false);
-      alert('Terjadi kesalahan koneksi GAS: ' + (e as Error).message);
+      showAlert('Terjadi kesalahan koneksi GAS: ' + (e as Error).message);
     }
   };
 
   const handlePushAllToSheets = async () => {
     if (!gasConfig.webAppUrl) {
-      alert('URL Web App Google Apps Script belum diisi.');
+      showAlert('URL Web App Google Apps Script belum diisi.');
       return;
     }
-    if (!window.confirm(`Unggah ${flatLinks.length} tautan master saat ini ke Google Spreadsheet?`)) {
-      return;
-    }
-    setIsSyncingGas(true);
-    const res = await pushGasAllLinks(gasConfig.webAppUrl, flatLinks, gasConfig.adminPasscode);
-    setIsSyncingGas(false);
-    if (res.success) {
-      const updatedConfig = { ...gasConfig, syncStatus: 'online' as const, lastSyncTimestamp: Date.now() };
-      onGasConfigUpdated(updatedConfig);
-      showToast(`Berhasil mengunggah ${res.count || flatLinks.length} tautan ke Google Sheets!`);
-    } else {
-      alert('Gagal mengunggah ke Google Sheets: ' + (res.error || 'Terjadi kesalahan'));
-    }
+    openConfirm(
+      `Unggah ${flatLinks.length} tautan master saat ini ke Google Spreadsheet?`,
+      async () => {
+        setIsSyncingGas(true);
+        const res = await pushGasAllLinks(gasConfig.webAppUrl, flatLinks, gasConfig.adminPasscode);
+        setIsSyncingGas(false);
+        if (res.success) {
+          const updatedConfig = { ...gasConfig, syncStatus: 'online' as const, lastSyncTimestamp: Date.now() };
+          onGasConfigUpdated(updatedConfig);
+          showToast(`Berhasil mengunggah ${res.count || flatLinks.length} tautan ke Google Sheets!`);
+        } else {
+          showAlert('Gagal mengunggah ke Google Sheets: ' + (res.error || 'Terjadi kesalahan'));
+        }
+      }
+    );
   };
 
   const handleCopyHpSyncUrl = () => {
     if (!gasConfig.webAppUrl) {
-      alert('URL Web App Google Apps Script belum diisi.');
+      showAlert('URL Web App Google Apps Script belum diisi.');
       return;
     }
     const currentOrigin = window.location.origin + window.location.pathname;
@@ -634,10 +678,10 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
           onDataChanged();
           showToast(`Berhasil memulihkan ${parsed.length} tautan dari file JSON!`);
         } else {
-          alert('Format JSON tidak sesuai struktur data tautan.');
+          showAlert('Format JSON tidak sesuai struktur data tautan.');
         }
       } catch (err) {
-        alert('Gagal membaca file: ' + (err as Error).message);
+        showAlert('Gagal membaca file: ' + (err as Error).message);
       }
     };
     reader.readAsText(file);
@@ -2512,6 +2556,55 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================== CUSTOM CENTRAL CONFIRM / ALERT POPUP ============================== */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl w-full max-w-sm sm:max-w-md shadow-2xl p-6 sm:p-7 border border-slate-200 text-left animate-in zoom-in-95 duration-150 flex flex-col gap-3.5 my-auto">
+            {/* Header: Exact text "linktree pp1 Says" */}
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center p-1 shrink-0 border border-slate-700">
+                <Logo153 size="sm" />
+              </div>
+              <div>
+                <h3 className="font-black text-sm sm:text-base text-slate-900 tracking-tight leading-tight">
+                  {confirmDialog.title || 'linktree pp1 Says'}
+                </h3>
+                <span className="text-[10px] text-slate-400 font-semibold block">
+                  Divisi Produksi I PT Batu Karang
+                </span>
+              </div>
+            </div>
+
+            {/* Message Body */}
+            <div className="py-2">
+              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium whitespace-pre-line">
+                {confirmDialog.message}
+              </p>
+            </div>
+
+            {/* Action Buttons: Cancel and OK in middle/right */}
+            <div className="flex items-center justify-end gap-3 pt-1">
+              {!confirmDialog.isAlertOnly && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDialog(null)}
+                  className="px-5 py-2.5 rounded-full bg-[#a5f3fc] hover:bg-[#67e8f9] text-[#004e5a] text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+                >
+                  {confirmDialog.cancelLabel || 'Cancel'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => confirmDialog.onConfirm()}
+                className="px-6 py-2.5 rounded-full bg-[#005f73] hover:bg-[#0a9396] text-white text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95"
+              >
+                {confirmDialog.confirmLabel || 'OK'}
+              </button>
+            </div>
           </div>
         </div>
       )}

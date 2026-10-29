@@ -149,6 +149,34 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Central Pop-up Dialog State (Pengganti window.confirm native)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    onConfirm: () => void;
+  } | null>(null);
+
+  const openConfirm = (
+    message: string,
+    onConfirm: () => void,
+    options?: { title?: string; confirmLabel?: string; cancelLabel?: string }
+  ) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: options?.title || 'linktree pp1 Says',
+      message,
+      confirmLabel: options?.confirmLabel || 'OK',
+      cancelLabel: options?.cancelLabel || 'Cancel',
+      onConfirm: () => {
+        setConfirmDialog(null);
+        onConfirm();
+      },
+    });
+  };
+
   if (!isOpen) return null;
 
   const showToast = (msg: string) => {
@@ -379,7 +407,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       message = `Grup "${label}" memiliki ${childCount} tautan di dalamnya. Seluruh tautan anak akan IKUT TERHAPUS. Tindakan ini tidak dapat dibatalkan. Lanjutkan?`;
     }
 
-    if (window.confirm(message)) {
+    openConfirm(message, () => {
       deleteStoredLink(id);
       onDataChanged();
       showToast('Data berhasil dihapus.');
@@ -391,23 +419,23 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           }
         }).catch(() => {});
       }
-    }
+    });
   };
 
   const handleResetStatistics = () => {
-    if (window.confirm('Reset seluruh data statistik kunjungan, tren grafik, dan jumlah klik kembali ke 0? Tindakan ini membersihkan seluruh data uji coba/dummy.')) {
+    openConfirm('Reset seluruh data statistik kunjungan, tren grafik, dan jumlah klik kembali ke 0? Tindakan ini membersihkan seluruh data uji coba/dummy.', () => {
       resetAllStatistics();
       onDataChanged();
       showToast('Statistik kunjungan dan klik berhasil direset ke 0.');
-    }
+    });
   };
 
   const handleFactoryReset = () => {
-    if (window.confirm('Bersihkan semua data dummy pengembangan dan reset seluruh link & statistik ke kondisi bersih awal?')) {
+    openConfirm('Bersihkan semua data dummy pengembangan dan reset seluruh link & statistik ke kondisi bersih awal?', () => {
       factoryResetAll();
       onDataChanged();
       showToast('Seluruh data link dummy dan statistik berhasil dibersihkan.');
-    }
+    });
   };
 
   const handleMove = (id: string, direction: 'up' | 'down', parentId: string) => {
@@ -501,23 +529,22 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   };
 
   const handleResetAllPins = () => {
-    if (
-      window.confirm(
-        `PERINGATAN DEVELOPER / SUPER ADMIN:\n\nApakah Anda yakin ingin mereset PIN SELURUH staf (${staffList.length} orang) ke PIN standar (${DEFAULT_STAFF_PIN})?\n\nTindakan ini akan mengembalikan semua akun ke PIN awal pabrik.`
-      )
-    ) {
-      const res = resetAllStaffPinsToDefault();
-      setStaffList(getStoredStaffList());
-      showToast(res.message);
-    }
+    openConfirm(
+      `PERINGATAN DEVELOPER / SUPER ADMIN:\n\nApakah Anda yakin ingin mereset PIN SELURUH staf (${staffList.length} orang) ke PIN standar (${DEFAULT_STAFF_PIN})?\n\nTindakan ini akan mengembalikan semua akun ke PIN awal pabrik.`,
+      () => {
+        const res = resetAllStaffPinsToDefault();
+        setStaffList(getStoredStaffList());
+        showToast(res.message);
+      }
+    );
   };
 
   const handleDeleteStaff = (staff: StaffMember) => {
-    if (window.confirm(`Hapus akses staf ${staff.nama} (${staff.jabatan})? Staf ini tidak akan dapat login lagi.`)) {
+    openConfirm(`Hapus akses staf ${staff.nama} (${staff.jabatan})? Staf ini tidak akan dapat login lagi.`, () => {
       deleteStoredStaff(staff.id);
       setStaffList(getStoredStaffList());
       showToast(`Staf ${staff.nama} telah dihapus.`);
-    }
+    });
   };
 
   const toggleAllowedLinkId = (id: string) => {
@@ -2398,6 +2425,50 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Custom Centered Confirm Dialog: linktree pp1 Says */}
+        {confirmDialog && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="bg-white rounded-3xl w-full max-w-sm sm:max-w-md shadow-2xl p-6 sm:p-7 border border-slate-200 text-left animate-in zoom-in-95 duration-150 flex flex-col gap-3.5 my-auto">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center p-1 shrink-0 border border-slate-700">
+                  <Logo153 size="sm" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm sm:text-base text-slate-900 tracking-tight leading-tight">
+                    {confirmDialog.title || 'linktree pp1 Says'}
+                  </h3>
+                  <span className="text-[10px] text-slate-400 font-semibold block">
+                    Divisi Produksi I PT Batu Karang
+                  </span>
+                </div>
+              </div>
+
+              <div className="py-2">
+                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium whitespace-pre-line">
+                  {confirmDialog.message}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDialog(null)}
+                  className="px-5 py-2.5 rounded-full bg-[#a5f3fc] hover:bg-[#67e8f9] text-[#004e5a] text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+                >
+                  {confirmDialog.cancelLabel || 'Cancel'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => confirmDialog.onConfirm()}
+                  className="px-6 py-2.5 rounded-full bg-[#005f73] hover:bg-[#0a9396] text-white text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95"
+                >
+                  {confirmDialog.confirmLabel || 'OK'}
+                </button>
+              </div>
             </div>
           </div>
         )}
