@@ -95,3 +95,14 @@ export interface BannerConfig {
   title: string;
   description: string;
 }
+
+export interface CompanyUser {
+  nama: string;
+  email: string;
+  jabatan: string;
+  unit: string;
+  role?: Role;
+  staffId?: string;
+  loginAt: string;
+}
+

@@ -1,4 +1,4 @@
-import { LinkItem, GasConfig, StatistikData, Role, StaffMember, DEFAULT_STAFF_PIN, BannerConfig } from '../types';
+import { LinkItem, GasConfig, StatistikData, Role, StaffMember, DEFAULT_STAFF_PIN, BannerConfig, CompanyUser } from '../types';
 import { INITIAL_LINKS, INITIAL_STATISTIK } from './defaultData';
 
 const CACHE_KEY_LINKS = 'bkr_linkhub_cache_v3';
@@ -10,6 +10,9 @@ const CACHE_KEY_VISIT_DATE = 'bkr_last_visit_date_v3';
 const CACHE_KEY_STAFF_LIST = 'bkr_staff_list_v2';
 const CACHE_KEY_ACTIVE_STAFF = 'bkr_active_staff_session';
 const CACHE_KEY_BANNER = 'bkr_banner_config_v1';
+const CACHE_KEY_COMPANY_USER = 'bkr_company_auth_user_v1';
+const CACHE_KEY_DELETED_IDS = 'bkr_deleted_link_ids_v2';
+const CACHE_KEY_DELETED_LABELS = 'bkr_deleted_link_labels_v2';
 
 // Data Staf Awal Berdasarkan Unit Operasional
 export const INITIAL_STAFF_LIST: StaffMember[] = [
@@ -405,13 +408,116 @@ export function saveUserRole(role: Role): void {
   localStorage.setItem(CACHE_KEY_ROLE, role);
 }
 
+// ------------------------------------------------------------
+// BLACKLIST / TOMBSTONE UNTUK TWO-WAY SYNC (Mencegah Link Terhapus Muncul Kembali)
+// ------------------------------------------------------------
+
+export function getDeletedLinkIds(): string[] {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY_DELETED_IDS);
+    const parsed: string[] = raw ? JSON.parse(raw) : [];
+    // Pastikan LNK-08 (Permintaan Penarikan Bahan Baku Silo) selalu ada di daftar hapus
+    if (!parsed.includes('LNK-08')) {
+      parsed.push('LNK-08');
+    }
+    return parsed;
+  } catch {
+    return ['LNK-08'];
+  }
+}
+
+export function getDeletedLinkLabels(): string[] {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY_DELETED_LABELS);
+    const parsed: string[] = raw ? JSON.parse(raw) : [];
+    const target = 'permintaan penarikan bahan baku silo';
+    if (!parsed.includes(target)) {
+      parsed.push(target);
+    }
+    return parsed;
+  } catch {
+    return ['permintaan penarikan bahan baku silo'];
+  }
+}
+
+export function addDeletedLinkRecord(id: string, label?: string): void {
+  try {
+    const ids = getDeletedLinkIds();
+    if (id && !ids.includes(id)) {
+      ids.push(id);
+      localStorage.setItem(CACHE_KEY_DELETED_IDS, JSON.stringify(ids));
+    }
+    if (label && label.trim()) {
+      const labels = getDeletedLinkLabels();
+      const norm = label.trim().toLowerCase();
+      if (!labels.includes(norm)) {
+        labels.push(norm);
+        localStorage.setItem(CACHE_KEY_DELETED_LABELS, JSON.stringify(labels));
+      }
+    }
+  } catch (e) {
+    console.error('Gagal mencatat link yang dihapus:', e);
+  }
+}
+
+// ------------------------------------------------------------
+// COMPANY USER AUTHENTICATION GATE (Sesi Login Satu Kali di Local Cache)
+// ------------------------------------------------------------
+
+export function getAuthenticatedCompanyUser(): CompanyUser | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY_COMPANY_USER);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.nama && parsed.email) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('Gagal membaca data sesi login perusahaan:', e);
+  }
+  return null;
+}
+
+export function saveAuthenticatedCompanyUser(user: CompanyUser): void {
+  try {
+    localStorage.setItem(CACHE_KEY_COMPANY_USER, JSON.stringify(user));
+  } catch (e) {
+    console.error('Gagal menyimpan sesi login perusahaan:', e);
+  }
+}
+
+export function clearAuthenticatedCompanyUser(): void {
+  try {
+    localStorage.removeItem(CACHE_KEY_COMPANY_USER);
+    localStorage.removeItem(CACHE_KEY_ACTIVE_STAFF);
+    sessionStorage.removeItem(CACHE_KEY_ACTIVE_STAFF);
+  } catch (e) {
+    console.error('Gagal menghapus sesi login:', e);
+  }
+}
+
+// ------------------------------------------------------------
+// NORMALISASI & MANIPULASI LINK
+// ------------------------------------------------------------
+
 export function normalizeAndFlattenLinks(rawLinks: LinkItem[]): LinkItem[] {
   if (!Array.isArray(rawLinks)) return [];
   const flat: LinkItem[] = [];
   const seenIds = new Set<string>();
 
+  const deletedIds = new Set(getDeletedLinkIds());
+  const deletedLabels = new Set(getDeletedLinkLabels());
+
+  const isDeleted = (item: LinkItem) => {
+    if (!item) return true;
+    if (item.id && deletedIds.has(item.id)) return true;
+    if (item.label && deletedLabels.has(item.label.trim().toLowerCase())) return true;
+    return false;
+  };
+
   for (const item of rawLinks) {
-    if (!item || !item.id) continue;
+    if (!item || !item.id || isDeleted(item)) continue;
     const { children, ...parentProps } = item;
     if (!seenIds.has(item.id)) {
       flat.push({
@@ -424,7 +530,7 @@ export function normalizeAndFlattenLinks(rawLinks: LinkItem[]): LinkItem[] {
     }
     if (children && Array.isArray(children)) {
       for (const child of children) {
-        if (child && child.id && !seenIds.has(child.id)) {
+        if (child && child.id && !seenIds.has(child.id) && !isDeleted(child)) {
           flat.push({
             ...child,
             parentId: child.parentId || item.id,
@@ -438,6 +544,7 @@ export function normalizeAndFlattenLinks(rawLinks: LinkItem[]): LinkItem[] {
   }
   return flat;
 }
+
 
 export function getStoredLinks(): LinkItem[] {
   try {
@@ -726,11 +833,22 @@ export function toggleLinkVisibility(id: string): { success: boolean; newStatus:
   return { success: true, newStatus: nextStatus, label: target.label };
 }
 
-export function deleteStoredLink(id: string): { success: boolean; deletedCount: number } {
+export function deleteStoredLink(id: string, label?: string): { success: boolean; deletedCount: number } {
   const links = getStoredLinks();
   const target = links.find((l) => l.id === id);
 
   if (!target) return { success: false, deletedCount: 0 };
+
+  const targetLabel = label || target.label;
+  addDeletedLinkRecord(id, targetLabel);
+
+  // Jika item adalah grup, catat juga semua id dan label anak yang ikut terhapus
+  if (target.tipe === 'Grup') {
+    const children = links.filter((l) => l.parentId === id);
+    children.forEach((c) => {
+      addDeletedLinkRecord(c.id, c.label);
+    });
+  }
 
   const remaining = links.filter((l) => l.id !== id && l.parentId !== id);
   const deletedCount = links.length - remaining.length;

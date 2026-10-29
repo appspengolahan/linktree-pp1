@@ -177,12 +177,14 @@ export async function pushGasLink(
 }
 
 /**
- * Hapus sebuah tautan dari Google Spreadsheet via GAS (Push Delete)
+ * Hapus sebuah tautan dari Google Spreadsheet via GAS (Push Delete Dua Arah)
  */
 export async function pushGasDeleteLink(
   url: string,
   id: string,
-  passcode: string = 'bkr153'
+  passcode: string = 'bkr153',
+  label?: string,
+  remainingLinks?: LinkItem[]
 ): Promise<{ success: boolean; error?: string }> {
   if (!url) return { success: false, error: 'URL GAS belum dikonfigurasi' };
 
@@ -190,35 +192,56 @@ export async function pushGasDeleteLink(
     const payload = {
       action: 'deleteLink',
       id,
+      label: label || '',
       passcode,
     };
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
-      body: JSON.stringify(payload),
-      redirect: 'follow',
-    });
+    // 1. Coba via POST
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
+        body: JSON.stringify(payload),
+        redirect: 'follow',
+      });
 
-    if (res.ok) {
-      const json = await res.json();
-      if (json && (json.success || json.ok)) {
-        return { success: true };
+      if (res.ok) {
+        const json = await res.json();
+        if (json && (json.success || json.ok)) {
+          return { success: true };
+        }
       }
+    } catch {
+      // lanjut ke fallback GET jika POST gagal / terhalang CORS
     }
 
-    // Fallback ke GET
-    const fallbackUrl = new URL(url);
-    fallbackUrl.searchParams.set('action', 'deleteLink');
-    fallbackUrl.searchParams.set('id', id);
-    fallbackUrl.searchParams.set('passcode', passcode);
+    // 2. Fallback via GET
+    try {
+      const fallbackUrl = new URL(url);
+      fallbackUrl.searchParams.set('action', 'deleteLink');
+      fallbackUrl.searchParams.set('id', id);
+      if (label) {
+        fallbackUrl.searchParams.set('label', label);
+      }
+      fallbackUrl.searchParams.set('passcode', passcode);
 
-    const getRes = await fetch(fallbackUrl.toString());
-    if (getRes.ok) {
-      const getJson = await getRes.json();
-      if (getJson && (getJson.success || getJson.ok)) {
+      const getRes = await fetch(fallbackUrl.toString());
+      if (getRes.ok) {
+        const getJson = await getRes.json();
+        if (getJson && (getJson.success || getJson.ok)) {
+          return { success: true };
+        }
+      }
+    } catch {
+      // lanjut ke sync menyeluruh jika ada
+    }
+
+    // 3. Fallback Mutlak: Jika daftar tautan tersisa disertakan, push data bersih secara menyeluruh
+    if (remainingLinks && Array.isArray(remainingLinks)) {
+      const fullSyncRes = await pushGasAllLinks(url, remainingLinks, passcode);
+      if (fullSyncRes.success) {
         return { success: true };
       }
     }
@@ -229,6 +252,7 @@ export async function pushGasDeleteLink(
     return { success: false, error: msg };
   }
 }
+
 
 /**
  * Unggah seluruh daftar tautan lokal ke Google Spreadsheet sekaligus (Push All / Seed)
@@ -405,8 +429,9 @@ function doGet(e) {
     // Hapus link via GET
     if (action === 'deleteLink') {
       checkAuth_({ token: token, passcode: passcode });
-      const id = e.parameter.id;
-      const res = deleteLink_(id);
+      const id = e.parameter.id || '';
+      const label = e.parameter.label || '';
+      const res = deleteLink_(id, label);
       return jsonResponse_(res);
     }
 
@@ -474,7 +499,7 @@ function doPost(e) {
     }
 
     if (action === 'deleteLink') {
-      const res = deleteLink_(payload.id);
+      const res = deleteLink_(payload.id, payload.label);
       return jsonResponse_(res);
     }
 
@@ -712,19 +737,30 @@ function saveAllLinks_(links) {
   return { success: true, count: rows.length };
 }
 
-function deleteLink_(id) {
+function deleteLink_(id, label) {
   const sheet = getSheet_();
   const data = sheet.getDataRange().getValues();
   const idIdx = HEADERS.indexOf('ID');
+  const labelIdx = HEADERS.indexOf('Label');
   const parentIdx = HEADERS.indexOf('ParentID');
+
+  const cleanId = id ? String(id).trim() : '';
+  const cleanLabel = label ? String(label).trim().toLowerCase() : '';
 
   const rowsToDelete = [];
   for (let r = 1; r < data.length; r++) {
-    if (String(data[r][idIdx]) === String(id) || String(data[r][parentIdx]) === String(id)) {
+    const rowId = String(data[r][idIdx] || '').trim();
+    const rowLabel = String(data[r][labelIdx] || '').trim().toLowerCase();
+    const rowParent = String(data[r][parentIdx] || '').trim();
+
+    const matchId = cleanId && (rowId === cleanId || rowParent === cleanId);
+    const matchLabel = cleanLabel && (rowLabel === cleanLabel || rowLabel.indexOf(cleanLabel) !== -1 || cleanLabel.indexOf(rowLabel) !== -1);
+
+    if (matchId || matchLabel) {
       rowsToDelete.push(r + 1);
     }
   }
-  if (!rowsToDelete.length) return { success: false, message: 'ID tidak ditemukan' };
+  if (!rowsToDelete.length) return { success: false, message: 'ID atau Label tidak ditemukan di spreadsheet' };
 
   rowsToDelete.sort(function(a, b) { return b - a; }).forEach(function(r) { sheet.deleteRow(r); });
   return { success: true, deletedCount: rowsToDelete.length };

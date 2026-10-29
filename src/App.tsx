@@ -20,7 +20,7 @@ import {
   LayoutDashboard,
 } from 'lucide-react';
 
-import { LinkItem, Role, GasConfig, StatistikData, StaffMember, BannerConfig, DEFAULT_STAFF_PIN } from './types';
+import { LinkItem, Role, GasConfig, StatistikData, StaffMember, BannerConfig, DEFAULT_STAFF_PIN, CompanyUser } from './types';
 import {
   getStoredLinks,
   getStoredStats,
@@ -37,9 +37,15 @@ import {
   saveStoredLinks,
   normalizeAndFlattenLinks,
   canStaffEditLink,
+  getAuthenticatedCompanyUser,
+  clearAuthenticatedCompanyUser,
+  getDeletedLinkIds,
+  getDeletedLinkLabels,
 } from './services/storage';
 import { fetchGasLinks, postGasRecordClick } from './services/gasApi';
 import { isLinkRelevantForRole, hasFullAccessRole } from './services/rbac';
+
+import { CompanyLoginGate } from './components/CompanyLoginGate';
 
 import { LinkCard } from './components/LinkCard';
 import { GroupCard } from './components/GroupCard';
@@ -65,6 +71,16 @@ export default function App() {
   const [activeStaff, setActiveStaff] = useState<StaffMember | null>(getActiveStaffSession());
   const [isStaffAuthModalOpen, setIsStaffAuthModalOpen] = useState<boolean>(false);
   const [staffEditingTarget, setStaffEditingTarget] = useState<LinkItem | null>(null);
+
+  // Company Internal Authentication Gate (Tersimpan Permanen di Cache Lokal Perangkat)
+  const [companyUser, setCompanyUser] = useState<CompanyUser | null>(() => getAuthenticatedCompanyUser());
+
+  const handleCompanyLogout = () => {
+    clearAuthenticatedCompanyUser();
+    setCompanyUser(null);
+    setActiveStaff(null);
+    showToast('Sesi telah ditutup. Silakan masuk kembali.');
+  };
 
   // RBAC State
   const [isRbacModalOpen, setIsRbacModalOpen] = useState<boolean>(false);
@@ -168,7 +184,12 @@ export default function App() {
     try {
       const res = await fetchGasLinks(cfg.webAppUrl);
       if (res.success && res.links && res.links.length > 0) {
-        const flat = normalizeAndFlattenLinks(res.links);
+        const deletedIds = new Set(getDeletedLinkIds());
+        const deletedLabels = new Set(getDeletedLinkLabels());
+        const filteredResLinks = res.links.filter(
+          (l) => !deletedIds.has(l.id) && (!l.label || !deletedLabels.has(l.label.trim().toLowerCase()))
+        );
+        const flat = normalizeAndFlattenLinks(filteredResLinks);
         setLinks(flat);
         saveStoredLinks(flat); // Simpan ke cache lokal agar device lain langsung memiliki data terbaru
         setGasConfig((prev) => {
@@ -391,10 +412,49 @@ export default function App() {
     });
   }, [links, searchQuery, selectedCategory, filterByRoleOnly, currentRole, activeStaff, isPublicMode]);
 
+  // Jika pengguna belum melakukan login perusahaan internal, tampilkan gerbang autentikasi
+  if (!companyUser) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center font-sans">
+        <CompanyLoginGate
+          onLoginSuccess={(user) => {
+            setCompanyUser(user);
+            if (user.role) {
+              setCurrentRole(user.role);
+            }
+          }}
+          showToast={showToast}
+        />
+        {toastMessage && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 text-white px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 text-xs font-semibold animate-in slide-in-from-bottom duration-200 border border-slate-800">
+            <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // Tampilan Dashboard Manajemen Khusus (Developer, Engineer, Project Manager, Admin, & Staf PIC)
   if (viewMode === 'dashboard') {
     return (
       <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
+        {/* Top Strip Pengguna Internal */}
+        <div className="bg-slate-950 text-slate-300 text-xs px-3 sm:px-6 py-1.5 border-b border-slate-800 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 truncate">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 animate-pulse" />
+            <span className="text-white font-bold truncate text-[11px] sm:text-xs">{companyUser.nama}</span>
+            <span className="text-slate-400 text-[10px] truncate hidden sm:inline">• {companyUser.jabatan}</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleCompanyLogout}
+            className="text-slate-400 hover:text-rose-400 text-[10px] font-semibold transition px-2 py-0.5 rounded hover:bg-slate-900 border border-slate-800 cursor-pointer"
+          >
+            Keluar / Ganti Akun
+          </button>
+        </div>
+
         <ManagementDashboard
           currentRole={currentRole}
           onRoleChange={handleRoleChange}
@@ -434,6 +494,28 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f1f5f9] text-slate-900 flex flex-col font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
+      {/* 0. Internal Staff Identity Bar (Status Login Aktif & Tombol Keluar) */}
+      <div className="bg-slate-950 text-slate-300 text-xs px-3 sm:px-6 py-2 border-b border-slate-800/90 flex items-center justify-between gap-2 shadow-xs">
+        <div className="flex items-center gap-2 truncate">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 animate-pulse" />
+          <span className="text-white font-bold truncate text-[11px] sm:text-xs">{companyUser.nama}</span>
+          <span className="text-slate-400 text-[10px] sm:text-[11px] truncate hidden xs:inline">
+            • {companyUser.jabatan} ({companyUser.unit})
+          </span>
+          <span className="text-slate-500 font-mono text-[10px] truncate hidden md:inline">
+            [{companyUser.email}]
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={handleCompanyLogout}
+          className="text-slate-400 hover:text-rose-400 text-[10px] sm:text-xs font-semibold transition px-2 py-0.5 rounded-lg hover:bg-slate-900 border border-slate-800 shrink-0 cursor-pointer"
+          title="Keluar dari sesi portal di perangkat ini"
+        >
+          Ganti Akun / Keluar
+        </button>
+      </div>
+
       {/* 1. Curved Midnight Navy Hero Section (Identitas Resmi Divisi Produksi I PT Batu Karang) */}
       <section className="bg-gradient-to-r from-[#091b31] via-[#0d223d] to-[#071326] text-white pt-3.5 pb-6 sm:pb-7 px-4 rounded-b-[32px] sm:rounded-b-[44px] shadow-md border-b border-[#1e3250] relative overflow-hidden">
         {/* Subtle decorative glow */}

@@ -180,21 +180,6 @@ export const INITIAL_LINKS: LinkItem[] = [
     tipe: 'Link',
     parentId: 'GRP-02',
   },
-  {
-    id: 'LNK-08',
-    label: 'Permintaan Penarikan Bahan Baku Silo',
-    url: '',
-    icon: '📋',
-    kategori: 'Formulir & Shift',
-    deskripsi: 'Pengajuan penarikan material tembakau & blend ke gudang pusat',
-    urutan: 40,
-    aktif: true,
-    pinned: false,
-    klik: 0,
-    terakhirUpdate: '-',
-    tipe: 'Link',
-    parentId: 'GRP-02',
-  },
 
   // Grup 3: QC & Mutu
   {

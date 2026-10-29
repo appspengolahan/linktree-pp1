@@ -408,14 +408,15 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     }
 
     openConfirm(message, () => {
-      deleteStoredLink(id);
+      const remainingLinks = allLinks.filter((l) => l.id !== id && l.parentId !== id);
+      deleteStoredLink(id, label);
       onDataChanged();
       showToast('Data berhasil dihapus.');
 
       if (gasConfig.webAppUrl) {
-        pushGasDeleteLink(gasConfig.webAppUrl, id, gasConfig.adminPasscode).then((delRes) => {
+        pushGasDeleteLink(gasConfig.webAppUrl, id, gasConfig.adminPasscode, label, remainingLinks).then((delRes) => {
           if (delRes.success) {
-            showToast('Baris di Google Sheets berhasil diperbarui.');
+            showToast('Baris di Google Sheets berhasil diselaraskan permanen.');
           }
         }).catch(() => {});
       }

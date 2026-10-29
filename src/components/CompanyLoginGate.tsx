@@ -1,0 +1,345 @@
+import React, { useState } from 'react';
+import {
+  Lock,
+  User,
+  Mail,
+  KeyRound,
+  Eye,
+  EyeOff,
+  ShieldCheck,
+  CheckCircle2,
+  AlertCircle,
+  ArrowRight,
+  Sparkles,
+  Building2,
+} from 'lucide-react';
+import { CompanyUser, Role, StaffMember, DEFAULT_STAFF_PIN } from '../types';
+import {
+  getStoredStaffList,
+  saveAuthenticatedCompanyUser,
+  setActiveStaffSession,
+  saveUserRole,
+} from '../services/storage';
+import { Logo153 } from './Logo153';
+
+interface CompanyLoginGateProps {
+  onLoginSuccess: (user: CompanyUser) => void;
+  showToast?: (msg: string) => void;
+}
+
+export const CompanyLoginGate: React.FC<CompanyLoginGateProps> = ({
+  onLoginSuccess,
+  showToast,
+}) => {
+  const staffList = getStoredStaffList().filter((s) => s.aktif);
+
+  const [nama, setNama] = useState('');
+  const [email, setEmail] = useState('');
+  const [pin, setPin] = useState(DEFAULT_STAFF_PIN); // Pre-fill default 123456 for convenience
+  const [showPin, setShowPin] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Quick select preset profile
+  const handleSelectPreset = (st: StaffMember) => {
+    setNama(st.nama);
+    setEmail(st.email);
+    setPin(st.pin || DEFAULT_STAFF_PIN);
+    setErrorMessage('');
+  };
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+
+    const cleanNama = nama.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPin = pin.trim();
+
+    if (!cleanNama) {
+      setErrorMessage('Silakan masukkan nama lengkap Anda.');
+      return;
+    }
+
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setErrorMessage('Silakan masukkan alamat email yang valid.');
+      return;
+    }
+
+    if (!cleanPin) {
+      setErrorMessage('Silakan masukkan PIN akses standar.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    // Cari apakah profil cocok dengan daftar staf internal
+    const matchedStaff = staffList.find(
+      (s) =>
+        s.email.toLowerCase() === cleanEmail ||
+        s.nama.toLowerCase() === cleanNama.toLowerCase()
+    );
+
+    // Verifikasi PIN:
+    // 1. PIN Standar Perusahaan: DEFAULT_STAFF_PIN ('123456')
+    // 2. PIN Staf kustom jika staf telah mengganti PIN sendiri
+    // 3. Master passcode 'bkr153'
+    let isPinValid = false;
+    if (cleanPin === DEFAULT_STAFF_PIN || cleanPin === 'bkr153') {
+      isPinValid = true;
+    } else if (matchedStaff && String(matchedStaff.pin).trim() === cleanPin) {
+      isPinValid = true;
+    }
+
+    if (!isPinValid) {
+      setIsSubmitting(false);
+      setErrorMessage('PIN akses salah. Gunakan PIN Standar Perusahaan (123456) atau PIN staf Anda.');
+      return;
+    }
+
+    // Tentukan Role & Unit
+    let determinedRole: Role = 'Site Engineer';
+    let determinedJabatan = 'Karyawan Operasional';
+    let determinedUnit = 'Divisi Produksi I';
+    let staffId: string | undefined = undefined;
+
+    if (matchedStaff) {
+      staffId = matchedStaff.id;
+      determinedJabatan = matchedStaff.jabatan;
+      determinedUnit = matchedStaff.unit;
+      if (['Developer', 'Site Engineer', 'Project Manager', 'Manajer operasional', 'Admin'].includes(matchedStaff.jabatan)) {
+        determinedRole = matchedStaff.jabatan as Role;
+      }
+    } else if (cleanEmail.includes('dev') || cleanEmail.includes('engineer')) {
+      determinedRole = 'Developer';
+      determinedJabatan = 'Site Engineer & Developer';
+      determinedUnit = 'DevOps & Engineering';
+    }
+
+    const companyUser: CompanyUser = {
+      nama: cleanNama,
+      email: cleanEmail,
+      jabatan: determinedJabatan,
+      unit: determinedUnit,
+      role: determinedRole,
+      staffId: staffId,
+      loginAt: new Date().toISOString(),
+    };
+
+    // Simpan ke local cache agar kunjungan berikutnya otomatis lolos tanpa login ulang
+    if (rememberMe) {
+      saveAuthenticatedCompanyUser(companyUser);
+    }
+
+    // Jika user adalah staf terdaftar, aktifkan sesi staf sekaligus agar wewenang edit langsung terbuka
+    if (matchedStaff) {
+      setActiveStaffSession(matchedStaff);
+    } else {
+      // Buat sesi staf otomatis
+      const autoStaff: StaffMember = {
+        id: staffId || `STF-${Date.now().toString().slice(-4)}`,
+        nama: cleanNama,
+        jabatan: determinedJabatan,
+        email: cleanEmail,
+        pin: cleanPin,
+        unit: determinedUnit,
+        allowedLinkIds: determinedRole === 'Developer' || determinedRole === 'Site Engineer' ? ['*'] : [],
+        aktif: true,
+      };
+      setActiveStaffSession(autoStaff);
+    }
+
+    saveUserRole(determinedRole);
+
+    if (showToast) {
+      showToast(`Selamat datang di Portal Internal, ${cleanNama}!`);
+    }
+
+    setIsSubmitting(false);
+    onLoginSuccess(companyUser);
+  };
+
+  return (
+    <div className="min-h-screen w-full bg-slate-950 flex flex-col justify-center items-center p-4 sm:p-6 relative overflow-hidden font-sans">
+      {/* Background Lighting Effects */}
+      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-emerald-600/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900/40 via-slate-950 to-slate-950 pointer-events-none" />
+
+      {/* Main Container */}
+      <div className="relative w-full max-w-lg z-10">
+        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-xl">
+          {/* Header Banner */}
+          <div className="px-6 sm:px-8 pt-8 pb-6 text-center border-b border-slate-800/80 bg-linear-to-b from-slate-800/40 to-transparent">
+            <div className="flex justify-center mb-4">
+              <div className="p-1 rounded-2xl bg-slate-800/80 border border-slate-700/60 shadow-lg">
+                <Logo153 size="lg" />
+              </div>
+            </div>
+
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-400/30 text-blue-400 text-xs font-semibold uppercase tracking-wider mb-2.5">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Akses Internal Terproteksi</span>
+            </div>
+
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">
+              PT. BATU KARANG
+            </h1>
+            <p className="text-sm font-bold text-blue-400 tracking-wide uppercase mt-0.5">
+              Divisi Produksi I — Portal Terpadu 153
+            </p>
+            <p className="text-xs text-slate-400 mt-2 max-w-md mx-auto leading-relaxed">
+              Direktori tautan khusus karyawan & staf operasional. Masuk sekali menggunakan identitas Anda untuk akses berkelanjutan di perangkat ini.
+            </p>
+          </div>
+
+          {/* Quick Select Preset Pills */}
+          <div className="px-6 sm:px-8 pt-4 pb-2 bg-slate-950/40 border-b border-slate-800/50">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-amber-400" />
+                Pilih Cepat Profil Staf Terdaftar:
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pb-1 scrollbar-thin">
+              {staffList.slice(0, 7).map((st) => (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => handleSelectPreset(st)}
+                  className={`text-[11px] px-2.5 py-1 rounded-lg border transition flex items-center gap-1.5 text-left ${
+                    email.toLowerCase() === st.email.toLowerCase()
+                      ? 'bg-blue-600 text-white border-blue-500 font-bold shadow-xs'
+                      : 'bg-slate-800/80 text-slate-300 border-slate-700/70 hover:bg-slate-750 hover:text-white hover:border-slate-600'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span className="truncate max-w-[140px]">{st.nama}</span>
+                  <span className="text-[9px] opacity-60">({st.jabatan.split(' ')[0]})</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleLogin} className="p-6 sm:p-8 space-y-4">
+            {errorMessage && (
+              <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2.5 animate-in fade-in duration-200">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+                <div className="leading-relaxed">{errorMessage}</div>
+              </div>
+            )}
+
+            {/* Nama Input */}
+            <div>
+              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                Nama Lengkap / Panggilan
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <User className="w-4 h-4" />
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={nama}
+                  onChange={(e) => setNama(e.target.value)}
+                  placeholder="Contoh: Budi Santoso / Lalu Mahendra"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition"
+                />
+              </div>
+            </div>
+
+            {/* Email Input */}
+            <div>
+              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                Email Perusahaan / Email Aktif
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="nama.staf@batukarang.co.id atau divisi1.bkr@gmail.com"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition"
+                />
+              </div>
+            </div>
+
+            {/* PIN Input */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  PIN Standar Perusahaan
+                </label>
+                <span className="text-[11px] font-mono font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                  Standar: 123456
+                </span>
+              </div>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <KeyRound className="w-4 h-4" />
+                </div>
+                <input
+                  type={showPin ? 'text' : 'password'}
+                  required
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value)}
+                  placeholder="Masukkan 6-digit PIN standar"
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition font-mono tracking-wider"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPin(!showPin)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 transition"
+                  tabIndex={-1}
+                >
+                  {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Remember me checkbox */}
+            <div className="pt-1">
+              <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 rounded bg-slate-950 border-slate-700 text-blue-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                />
+                <span className="text-xs text-slate-300 leading-snug">
+                  <strong className="text-white">Simpan sesi di perangkat ini</strong> — berikutnya langsung masuk otomatis tanpa perlu login ulang.
+                </span>
+              </label>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-3.5 px-4 rounded-xl font-bold text-sm text-white bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.99] transition shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer mt-2"
+            >
+              <Lock className="w-4 h-4" />
+              <span>Masuk ke Portal Internal Divisi Produksi I</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </form>
+
+          {/* Footer Info */}
+          <div className="px-6 sm:px-8 py-3.5 bg-slate-950/70 border-t border-slate-800/70 text-center">
+            <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
+              <Building2 className="w-3.5 h-3.5 text-slate-500" />
+              <span>PT Batu Karang — Hak Cipta Divisi Produksi I &copy; {new Date().getFullYear()}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

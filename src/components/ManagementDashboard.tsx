@@ -385,12 +385,24 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
       : `Hapus tautan "${item.label}"?`;
 
     openConfirm(msg, () => {
-      const res = deleteStoredLink(item.id);
+      const remainingLinks = flatLinks.filter((l) => l.id !== item.id && l.parentId !== item.id);
+      const res = deleteStoredLink(item.id, item.label);
       if (res.success) {
-        showToast(`Berhasil menghapus ${res.deletedCount} item.`);
+        showToast(`Berhasil menghapus "${item.label}".`);
         onDataChanged();
         if (gasConfig.webAppUrl) {
-          pushGasDeleteLink(gasConfig.webAppUrl, item.id, gasConfig.adminPasscode).catch(() => {});
+          showToast('Menyinkronkan penghapusan ke Google Sheets...');
+          pushGasDeleteLink(
+            gasConfig.webAppUrl,
+            item.id,
+            gasConfig.adminPasscode,
+            item.label,
+            remainingLinks
+          ).then((pushRes) => {
+            if (pushRes.success) {
+              showToast('Baris di Google Sheets berhasil dihapus permanen.');
+            }
+          }).catch(() => {});
         }
       }
     });
