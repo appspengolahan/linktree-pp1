@@ -34,7 +34,7 @@ export const CompanyLoginGate: React.FC<CompanyLoginGateProps> = ({
 
   const [nama, setNama] = useState('');
   const [email, setEmail] = useState('');
-  const [pin, setPin] = useState(DEFAULT_STAFF_PIN); // Pre-fill default 123456 for convenience
+  const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
@@ -59,7 +59,7 @@ export const CompanyLoginGate: React.FC<CompanyLoginGateProps> = ({
     }
 
     if (!cleanPin) {
-      setErrorMessage('Silakan masukkan PIN akses standar.');
+      setErrorMessage('Silakan masukkan PIN akses Anda.');
       return;
     }
 
@@ -85,12 +85,13 @@ export const CompanyLoginGate: React.FC<CompanyLoginGateProps> = ({
 
     if (!isPinValid) {
       setIsSubmitting(false);
-      setErrorMessage('PIN akses salah. Gunakan PIN Standar Perusahaan (123456) atau PIN staf Anda.');
+      setErrorMessage('PIN akses salah. Masukkan PIN yang valid.');
       return;
     }
 
     // Tentukan Role & Unit
-    let determinedRole: Role = 'Site Engineer';
+    // FULL AKSES HANYA: Developer, Site Engineer, Manajer operasional
+    let determinedRole: Role = 'Admin';
     let determinedJabatan = 'Karyawan Operasional';
     let determinedUnit = 'Divisi Produksi I';
     let staffId: string | undefined = undefined;
@@ -99,13 +100,19 @@ export const CompanyLoginGate: React.FC<CompanyLoginGateProps> = ({
       staffId = matchedStaff.id;
       determinedJabatan = matchedStaff.jabatan;
       determinedUnit = matchedStaff.unit;
-      if (['Developer', 'Site Engineer', 'Project Manager', 'Manajer operasional', 'Admin'].includes(matchedStaff.jabatan)) {
+      if (['Developer', 'Site Engineer', 'Manajer operasional'].includes(matchedStaff.jabatan)) {
         determinedRole = matchedStaff.jabatan as Role;
+      } else {
+        determinedRole = 'Admin';
       }
-    } else if (cleanEmail.includes('dev') || cleanEmail.includes('engineer')) {
+    } else if (cleanEmail === 'divisi1.bkr@gmail.com' || cleanPin === 'bkr153') {
       determinedRole = 'Developer';
       determinedJabatan = 'Site Engineer & Developer';
       determinedUnit = 'DevOps & Engineering';
+    } else {
+      determinedRole = 'Admin';
+      determinedJabatan = 'Karyawan / Pengunjung Terverifikasi';
+      determinedUnit = 'Divisi Produksi I';
     }
 
     const companyUser: CompanyUser = {
@@ -127,7 +134,7 @@ export const CompanyLoginGate: React.FC<CompanyLoginGateProps> = ({
     if (matchedStaff) {
       setActiveStaffSession(matchedStaff);
     } else {
-      // Buat sesi staf otomatis
+      // Buat sesi staf standar (tanpa wildcard, hanya baca)
       const autoStaff: StaffMember = {
         id: staffId || `STF-${Date.now().toString().slice(-4)}`,
         nama: cleanNama,
@@ -144,7 +151,7 @@ export const CompanyLoginGate: React.FC<CompanyLoginGateProps> = ({
     saveUserRole(determinedRole);
 
     if (showToast) {
-      showToast(`Selamat datang di Portal Internal, ${cleanNama}!`);
+      showToast(`Selamat datang, ${cleanNama}!`);
     }
 
     setIsSubmitting(false);
@@ -181,7 +188,7 @@ export const CompanyLoginGate: React.FC<CompanyLoginGateProps> = ({
               Divisi Produksi I — Portal Terpadu 153
             </p>
             <p className="text-xs text-slate-400 mt-2 max-w-md mx-auto leading-relaxed">
-              Direktori tautan khusus karyawan & staf operasional. Masuk sekali menggunakan identitas Anda untuk akses berkelanjutan di perangkat ini.
+              Direktori tautan khusus karyawan &amp; staf operasional. Masuk menggunakan identitas Anda untuk mengelola dan mengakses tautan internal.
             </p>
           </div>
 
@@ -206,9 +213,10 @@ export const CompanyLoginGate: React.FC<CompanyLoginGateProps> = ({
                 <input
                   type="text"
                   required
+                  autoComplete="off"
                   value={nama}
                   onChange={(e) => setNama(e.target.value)}
-                  placeholder="Contoh: Budi Santoso / Lalu Mahendra"
+                  placeholder="Masukkan nama lengkap Anda"
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition"
                 />
               </div>
@@ -226,9 +234,10 @@ export const CompanyLoginGate: React.FC<CompanyLoginGateProps> = ({
                 <input
                   type="email"
                   required
+                  autoComplete="off"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nama.staf@batukarang.co.id atau divisi1.bkr@gmail.com"
+                  placeholder="Masukkan alamat email Anda"
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition"
                 />
               </div>
@@ -238,11 +247,8 @@ export const CompanyLoginGate: React.FC<CompanyLoginGateProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
-                  PIN Standar Perusahaan
+                  PIN Akses
                 </label>
-                <span className="text-[11px] font-mono font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                  Standar: 123456
-                </span>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -251,9 +257,10 @@ export const CompanyLoginGate: React.FC<CompanyLoginGateProps> = ({
                 <input
                   type={showPin ? 'text' : 'password'}
                   required
+                  autoComplete="off"
                   value={pin}
                   onChange={(e) => setPin(e.target.value)}
-                  placeholder="Masukkan 6-digit PIN standar"
+                  placeholder="Masukkan PIN Anda"
                   className="w-full pl-10 pr-10 py-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition font-mono tracking-wider"
                 />
                 <button

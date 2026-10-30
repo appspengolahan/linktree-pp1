@@ -34,6 +34,8 @@ import {
   Share2,
   Copy,
   Info,
+  Globe,
+  ShieldAlert,
 } from 'lucide-react';
 import {
   LinkItem,
@@ -98,11 +100,26 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
   showToast,
   initialTab = 'links',
 }) => {
-  const isPrivileged = hasFullAccessRole(currentRole);
+  // Akses Penuh (Full Access) HANYA untuk Developer, Site Engineer, dan Manajer operasional
+  const isFullAccess =
+    hasFullAccessRole(currentRole) &&
+    (!activeStaff || hasFullAccessRole(activeStaff.jabatan) || activeStaff.allowedLinkIds?.includes('*'));
+
+  // Cek apakah user berhak mengedit tautan/grup tertentu
+  const checkCanEdit = (item: LinkItem): boolean => {
+    if (isFullAccess) return true;
+    if (!activeStaff) return false;
+    return canStaffEditLink(activeStaff, item.id, item);
+  };
+
+  // Dua mode tampilan saat login sebagai Admin / PIC Staf:
+  // 'all' = melihat seluruh link pada halaman, namun hanya berhak mengedit link yang diberikan akses
+  // 'my_scope' = halaman hanya menampilkan link yang user tersebut memang diberi akses untuk mengedit
+  const [displayScope, setDisplayScope] = useState<'all' | 'my_scope'>('all');
 
   // Tabs: 'links' (Semua Link) | 'staff' (Kelola Staf & PIN) | 'mystaff' (Tautan Wewenang Saya) | 'gas' (Integrasi Sheets) | 'stats' (Statistik)
   const [activeTab, setActiveTab] = useState<'links' | 'staff' | 'mystaff' | 'gas' | 'stats'>(() => {
-    if (!isPrivileged && activeStaff) return 'mystaff';
+    if (!isFullAccess && activeStaff) return 'links';
     return initialTab;
   });
 
@@ -267,9 +284,18 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
         if (item.kategori !== categoryFilter) return false;
       }
 
+      // OPSI 2: Jika Admin/Staf memilih mode 'Hanya Tautan Wewenang Saya' (bukan Full Access)
+      if (!isFullAccess && displayScope === 'my_scope') {
+        const canEditItem = checkCanEdit(item);
+        const hasAuthorizedChild = children.some((c) => checkCanEdit(c));
+        if (!canEditItem && !hasAuthorizedChild) {
+          return false;
+        }
+      }
+
       return true;
     });
-  }, [flatLinks, searchQuery, visibilityFilter, categoryFilter]);
+  }, [flatLinks, searchQuery, visibilityFilter, categoryFilter, isFullAccess, displayScope, activeStaff]);
 
   // Staff's assigned links
   const staffAssignedLinks = useMemo(() => {
@@ -279,12 +305,25 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
       if (l.tipe === 'Grup') return false;
       const staffHasId = (activeStaff.allowedLinkIds || []).includes(l.id);
       const linkHasStaff = (l.allowedStaffIds || []).includes(activeStaff.id);
-      return staffHasId || linkHasStaff;
+      const parentHasStaff = l.parentId && (activeStaff.allowedLinkIds || []).includes(l.parentId);
+      return staffHasId || linkHasStaff || parentHasStaff;
     });
   }, [flatLinks, activeStaff]);
 
   // ---------------- Handlers: Link CRUD ----------------
   const handleOpenAddLink = (parentId = '', tipe: 'Link' | 'Grup' = 'Link') => {
+    if (!parentId && !isFullAccess) {
+      showAlert('Akses Ditolak: Hanya Developer, Site Engineer, dan Manajer Operasional yang dapat membuat grup atau tautan utama baru.');
+      return;
+    }
+    if (parentId && !isFullAccess) {
+      const parent = flatLinks.find((l) => l.id === parentId);
+      if (!parent || !checkCanEdit(parent)) {
+        showAlert('Akses Ditolak: Anda tidak memiliki wewenang untuk menambahkan sub-link ke grup ini.');
+        return;
+      }
+    }
+
     setEditingLink(null);
     setFormTipe(tipe);
     setFormLabel('');
@@ -301,6 +340,11 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
   };
 
   const handleOpenEditLink = (item: LinkItem) => {
+    if (!checkCanEdit(item)) {
+      showAlert('Akses Ditolak: Anda tidak memiliki wewenang untuk mengedit tautan ini.');
+      return;
+    }
+
     setEditingLink(item);
     setFormTipe(item.tipe || 'Link');
     setFormLabel(item.label || '');
@@ -330,6 +374,15 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
     if (formTipe === 'Link' && !formUrl.trim()) {
       showAlert('URL tautan wajib diisi untuk dokumen/link.');
       return;
+    }
+
+    // Validasi izin edit
+    if (!isFullAccess && editingLink && editingLink.id) {
+      const orig = flatLinks.find((l) => l.id === editingLink.id);
+      if (orig && !checkCanEdit(orig)) {
+        showAlert('Akses Ditolak: Anda tidak memiliki wewenang untuk memperbarui tautan ini.');
+        return;
+      }
     }
 
     const payload: Partial<LinkItem> = {
@@ -364,6 +417,11 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
   };
 
   const handleToggleVisibility = (item: LinkItem) => {
+    if (!checkCanEdit(item)) {
+      showAlert('Akses Ditolak: Anda tidak memiliki wewenang untuk mengubah status tampilkan/sembunyikan tautan ini.');
+      return;
+    }
+
     const res = toggleLinkVisibility(item.id);
     if (res.success) {
       showToast(`${res.newStatus ? '🟢 Ditampilkan' : '⚪ Disembunyikan'}: "${res.label}"`);
@@ -379,6 +437,11 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
   };
 
   const handleDeleteLink = (item: LinkItem) => {
+    if (!isFullAccess) {
+      showAlert('Akses Ditolak: Hanya Developer, Site Engineer, dan Manajer Operasional yang berwenang menghapus tautan.');
+      return;
+    }
+
     const isGroup = item.tipe === 'Grup';
     const msg = isGroup
       ? `Hapus grup "${item.label}" beserta seluruh tautan di dalamnya? Tindakan ini tidak dapat dibatalkan.`
@@ -435,6 +498,10 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
   // ---------------- Handlers: Quick Assign PIC Staff ----------------
   const handleOpenAssignStaff = (item: LinkItem) => {
+    if (!isFullAccess) {
+      showAlert('Akses Ditolak: Hanya Developer, Site Engineer, dan Manajer Operasional yang dapat mengatur penugasan staf PIC.');
+      return;
+    }
     setAssigningLinkTarget(item);
     let ids = Array.isArray(item.allowedStaffIds) ? [...item.allowedStaffIds] : [];
     if (ids.length === 0) {
@@ -745,28 +812,37 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
           {/* User Role Switcher & Action Controls */}
           <div className="flex items-center gap-2.5 flex-wrap justify-between md:justify-end">
             {/* Role Badge & Switcher */}
-            <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm">
-              <span className="text-xs sm:text-sm text-slate-400 font-medium">Peran:</span>
-              <select
-                value={currentRole}
-                onChange={(e) => {
-                  const newRole = e.target.value as Role;
-                  onRoleChange(newRole);
-                  saveUserRole(newRole);
-                  showToast(`Peran dialihkan ke: ${newRole}`);
-                }}
-                className="bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-lg px-2.5 py-1 border border-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
-              >
-                <option value="Developer">💻 Developer (Full)</option>
-                <option value="Site Engineer">👷 Site Engineer (Full)</option>
-                <option value="Project Manager">📋 Project Manager (Full)</option>
-                <option value="Manajer operasional">🏭 Manajer Operasional</option>
-                <option value="Admin">⚙️ Admin Sistem</option>
-                <option value="Supervisor QC">🔬 Supervisor QC (Staf)</option>
-                <option value="Foreman Lini">🏭 Foreman Lini (Staf)</option>
-                <option value="Operator">⚙️ Operator</option>
-              </select>
-            </div>
+            {isFullAccess ? (
+              <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm">
+                <span className="text-xs sm:text-sm text-slate-400 font-medium">Peran:</span>
+                <select
+                  value={currentRole}
+                  onChange={(e) => {
+                    const newRole = e.target.value as Role;
+                    onRoleChange(newRole);
+                    saveUserRole(newRole);
+                    showToast(`Peran dialihkan ke: ${newRole}`);
+                  }}
+                  className="bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-lg px-2.5 py-1 border border-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                >
+                  <option value="Developer">💻 Developer (Full)</option>
+                  <option value="Site Engineer">👷 Site Engineer (Full)</option>
+                  <option value="Manajer operasional">🏭 Manajer Operasional (Full)</option>
+                  <option value="Admin">⚙️ Admin Sistem (Wewenang Terbatas)</option>
+                  <option value="Supervisor QC">🔬 Supervisor QC (Staf)</option>
+                  <option value="Foreman Lini">🏭 Foreman Lini (Staf)</option>
+                  <option value="Operator">⚙️ Operator</option>
+                </select>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm">
+                <span className="text-slate-400 font-medium">Peran:</span>
+                <span className="font-bold text-amber-300 flex items-center gap-1.5 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                  <Lock className="w-3.5 h-3.5 text-amber-400" />
+                  {activeStaff?.jabatan || currentRole} (Terbatas)
+                </span>
+              </div>
+            )}
 
             {/* Staf Session Indicator / Switcher */}
             {activeStaff ? (
@@ -785,7 +861,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                   Keluar
                 </button>
               </div>
-            ) : (
+            ) : isFullAccess ? (
               <select
                 onChange={(e) => {
                   const s = staffList.find((item) => item.id === e.target.value);
@@ -809,7 +885,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                     </option>
                   ))}
               </select>
-            )}
+            ) : null}
 
             {/* Button to View Public LinkTree */}
             <button
@@ -841,19 +917,21 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               <span>Kelola Semua Link ({flatLinks.length})</span>
             </button>
 
-            {/* Tab 2: Hak Akses Staf & PIN */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('staff')}
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
-                activeTab === 'staff'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <Users className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span>Hak Akses Staf &amp; PIN ({staffList.length})</span>
-            </button>
+            {/* Tab 2: Hak Akses Staf & PIN (Khusus Full Access: Developer, Site Engineer, Manajer Operasional) */}
+            {isFullAccess && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('staff')}
+                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
+                  activeTab === 'staff'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <Users className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>Hak Akses Staf &amp; PIN ({staffList.length})</span>
+              </button>
+            )}
 
             {/* Tab 3: Workspace Tautan Wewenang Saya (Khusus Staf atau jika Staf Aktif) */}
             <button
@@ -871,19 +949,21 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               </span>
             </button>
 
-            {/* Tab 4: Integrasi Google Sheets */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('gas')}
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
-                activeTab === 'gas'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <CloudUpload className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span>Sinkronisasi Google Sheets</span>
-            </button>
+            {/* Tab 4: Integrasi Google Sheets (Khusus Full Access) */}
+            {isFullAccess && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('gas')}
+                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
+                  activeTab === 'gas'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <CloudUpload className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>Sinkronisasi Google Sheets</span>
+              </button>
+            )}
 
             {/* Tab 5: Statistik & Tren */}
             <button
@@ -950,6 +1030,64 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               </div>
             </div>
 
+            {/* 2 Opsi Tampilan untuk Admin / Staf PIC */}
+            <div className="bg-white rounded-2xl p-4 sm:p-5 border border-blue-200/80 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3.5 bg-gradient-to-r from-blue-50/40 via-white to-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  {displayScope === 'all' ? <Globe className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-extrabold text-sm sm:text-base text-slate-900">
+                      Mode Tampilan: {displayScope === 'all' ? 'Opsi A — Tampilkan Seluruh Link di Halaman' : 'Opsi B — Khusus Tautan Wewenang Saya'}
+                    </h3>
+                    <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${displayScope === 'all' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                      {displayScope === 'all' ? 'Semua Link' : 'Difilter Wewenang'}
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
+                    {displayScope === 'all'
+                      ? 'Menampilkan semua tautan pada portal. Tautan yang bukan wewenang Anda ditandai 🔒 dan terkunci (read-only).'
+                      : 'Hanya menampilkan tautan dan grup yang Anda diberi hak akses untuk mengedit.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Selector Opsi A vs Opsi B */}
+              <div className="inline-flex items-center p-1 bg-slate-100 border border-slate-200 rounded-xl self-start md:self-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDisplayScope('all');
+                    showToast('Mode diubah: Opsi A (Menampilkan seluruh link)');
+                  }}
+                  className={`px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                    displayScope === 'all'
+                      ? 'bg-white text-blue-700 shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Globe className="w-4 h-4" />
+                  <span>Opsi A: Semua Link</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDisplayScope('my_scope');
+                    showToast('Mode diubah: Opsi B (Hanya link wewenang Anda)');
+                  }}
+                  className={`px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                    displayScope === 'my_scope'
+                      ? 'bg-emerald-600 text-white shadow-xs font-black'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Opsi B: Hanya Wewenang Saya</span>
+                </button>
+              </div>
+            </div>
+
             {/* Action Bar: Search, Filters, +Tambah Link, +Tambah Grup */}
             <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3.5">
               {/* Search input */}
@@ -1013,26 +1151,30 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                   </button>
                 </div>
 
-                {/* Add Group & Add Link Buttons */}
-                <button
-                  type="button"
-                  onClick={() => handleOpenAddLink('', 'Grup')}
-                  className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-bold transition-colors inline-flex items-center gap-2 cursor-pointer shadow-2xs"
-                  title="Tambah grup penampung baru"
-                >
-                  <FolderPlus className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-                  <span>+ Tambah Grup</span>
-                </button>
+                {/* Add Group & Add Link Buttons (Hanya Full Access) */}
+                {isFullAccess && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenAddLink('', 'Grup')}
+                      className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-bold transition-colors inline-flex items-center gap-2 cursor-pointer shadow-2xs"
+                      title="Tambah grup penampung baru"
+                    >
+                      <FolderPlus className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                      <span>+ Tambah Grup</span>
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={() => handleOpenAddLink('', 'Link')}
-                  className="px-4 sm:px-4.5 py-2 sm:py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold transition-colors inline-flex items-center gap-2 cursor-pointer shadow-xs"
-                  title="Tambah link dokumen/formulir baru"
-                >
-                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span>+ Tambah Link</span>
-                </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenAddLink('', 'Link')}
+                      className="px-4 sm:px-4.5 py-2 sm:py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold transition-colors inline-flex items-center gap-2 cursor-pointer shadow-xs"
+                      title="Tambah link dokumen/formulir baru"
+                    >
+                      <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                      <span>+ Tambah Link</span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1070,147 +1212,197 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                       }`}
                     >
                       {/* Top-Level Item Row */}
-                      <div className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-3.5">
-                        <div className="flex items-start sm:items-center gap-3 min-w-0">
-                          {/* Urutan Move Buttons */}
-                          <div className="flex flex-col gap-1 shrink-0 pt-0.5 sm:pt-0">
-                            <button
-                              type="button"
-                              onClick={() => handleMoveUrutan(item.id, 'up', '')}
-                              disabled={isFirst}
-                              className="p-1 rounded-md text-slate-400 hover:text-slate-800 disabled:opacity-20 cursor-pointer"
-                              title="Pindahkan naik"
-                            >
-                              <ArrowUp className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleMoveUrutan(item.id, 'down', '')}
-                              disabled={isLast}
-                              className="p-1 rounded-md text-slate-400 hover:text-slate-800 disabled:opacity-20 cursor-pointer"
-                              title="Pindahkan turun"
-                            >
-                              <ArrowDown className="w-4 h-4" />
-                            </button>
-                          </div>
-
-                          {/* Icon */}
-                          <span className="text-3xl sm:text-4xl shrink-0">{item.icon || (isGroup ? '🗂️' : '🔗')}</span>
-
-                          {/* Title & Metadata */}
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2.5 flex-wrap">
-                              <h3 className="font-black text-sm sm:text-base md:text-lg text-slate-900 truncate">
-                                {item.label}
-                              </h3>
-                              {isGroup && (
-                                <span className="text-xs font-bold bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full">
-                                  🗂️ Grup ({children.length} anak)
-                                </span>
-                              )}
-                              {/* Visibility Badge */}
-                              <button
-                                type="button"
-                                onClick={() => handleToggleVisibility(item)}
-                                className={`text-xs font-bold px-3 py-1 rounded-full border inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
-                                  isAktif
-                                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
-                                    : 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200'
-                                }`}
-                                title="Klik untuk mengubah status sembunyikan/tampilkan"
-                              >
-                                {isAktif ? (
-                                  <>
-                                    <Eye className="w-3.5 h-3.5 text-emerald-600" /> Ditampilkan
-                                  </>
-                                ) : (
-                                  <>
-                                    <EyeOff className="w-3.5 h-3.5 text-amber-600" /> Disembunyikan
-                                  </>
-                                )}
-                              </button>
-                            </div>
-
-                            {/* Deskripsi & URL preview */}
-                            {item.deskripsi && (
-                              <p className="text-xs sm:text-sm text-slate-600 truncate mt-1 max-w-2xl font-medium">
-                                {item.deskripsi}
-                              </p>
-                            )}
-
-                            {item.url && (
-                              <div className="flex items-center gap-1.5 text-xs sm:text-sm text-blue-600 hover:underline mt-1 truncate max-w-2xl font-mono">
-                                <span className="truncate">{item.url}</span>
-                                <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                      {(() => {
+                        const canEditItem = checkCanEdit(item);
+                        return (
+                          <div className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-3.5">
+                            <div className="flex items-start sm:items-center gap-3 min-w-0">
+                              {/* Urutan Move Buttons (Hanya Full Access) */}
+                              <div className="flex flex-col gap-1 shrink-0 pt-0.5 sm:pt-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveUrutan(item.id, 'up', '')}
+                                  disabled={isFirst || !isFullAccess}
+                                  className="p-1 rounded-md text-slate-400 hover:text-slate-800 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
+                                  title={isFullAccess ? "Pindahkan naik" : "Pengurutan hanya untuk Developer/Site Engineer"}
+                                >
+                                  <ArrowUp className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveUrutan(item.id, 'down', '')}
+                                  disabled={isLast || !isFullAccess}
+                                  className="p-1 rounded-md text-slate-400 hover:text-slate-800 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
+                                  title={isFullAccess ? "Pindahkan turun" : "Pengurutan hanya untuk Developer/Site Engineer"}
+                                >
+                                  <ArrowDown className="w-4 h-4" />
+                                </button>
                               </div>
-                            )}
 
-                            {/* Staff PIC list badge */}
-                            <div className="flex items-center gap-2 mt-2 flex-wrap">
-                              <span className="text-xs font-bold text-slate-500">
-                                Staf PIC:
-                              </span>
-                              {assignedStaff.length > 0 ? (
-                                assignedStaff.map((s) => (
-                                  <span
-                                    key={s.id}
-                                    className="text-xs bg-slate-100 text-slate-800 px-2.5 py-0.5 rounded-md font-semibold border border-slate-200"
-                                  >
-                                    👤 {s.nama}
+                              {/* Icon */}
+                              <span className="text-3xl sm:text-4xl shrink-0">{item.icon || (isGroup ? '🗂️' : '🔗')}</span>
+
+                              {/* Title & Metadata */}
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2.5 flex-wrap">
+                                  <h3 className="font-black text-sm sm:text-base md:text-lg text-slate-900 truncate">
+                                    {item.label}
+                                  </h3>
+                                  {isGroup && (
+                                    <span className="text-xs font-bold bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full">
+                                      🗂️ Grup ({children.length} anak)
+                                    </span>
+                                  )}
+
+                                  {/* Authority Badge */}
+                                  {canEditItem ? (
+                                    <span className="text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 shadow-2xs">
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                      <span>Wewenang Anda</span>
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs font-bold bg-slate-100 text-slate-600 border border-slate-300 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                                      <Lock className="w-3.5 h-3.5 text-slate-500" />
+                                      <span>Bukan Wewenang Anda</span>
+                                    </span>
+                                  )}
+
+                                  {/* Visibility Badge */}
+                                  {canEditItem ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleVisibility(item)}
+                                      className={`text-xs font-bold px-3 py-1 rounded-full border inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
+                                        isAktif
+                                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
+                                          : 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200'
+                                      }`}
+                                      title="Klik untuk mengubah status sembunyikan/tampilkan"
+                                    >
+                                      {isAktif ? (
+                                        <>
+                                          <Eye className="w-3.5 h-3.5 text-emerald-600" /> Ditampilkan
+                                        </>
+                                      ) : (
+                                        <>
+                                          <EyeOff className="w-3.5 h-3.5 text-amber-600" /> Disembunyikan
+                                        </>
+                                      )}
+                                    </button>
+                                  ) : (
+                                    <span
+                                      className="text-xs font-bold px-3 py-1 rounded-full border border-slate-200 bg-slate-100 text-slate-500 inline-flex items-center gap-1.5 opacity-80 cursor-not-allowed"
+                                      title="Status publik (Hanya staf wewenang atau Full Access yang dapat mengubah)"
+                                    >
+                                      {isAktif ? (
+                                        <>
+                                          <Eye className="w-3.5 h-3.5 text-slate-500" /> Ditampilkan
+                                        </>
+                                      ) : (
+                                        <>
+                                          <EyeOff className="w-3.5 h-3.5 text-slate-400" /> Disembunyikan
+                                        </>
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Deskripsi & URL preview */}
+                                {item.deskripsi && (
+                                  <p className="text-xs sm:text-sm text-slate-600 truncate mt-1 max-w-2xl font-medium">
+                                    {item.deskripsi}
+                                  </p>
+                                )}
+
+                                {item.url && (
+                                  <div className="flex items-center gap-1.5 text-xs sm:text-sm text-blue-600 hover:underline mt-1 truncate max-w-2xl font-mono">
+                                    <span className="truncate">{item.url}</span>
+                                    <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                                  </div>
+                                )}
+
+                                {/* Staff PIC list badge */}
+                                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                  <span className="text-xs font-bold text-slate-500">
+                                    Staf PIC:
                                   </span>
-                                ))
+                                  {assignedStaff.length > 0 ? (
+                                    assignedStaff.map((s) => (
+                                      <span
+                                        key={s.id}
+                                        className="text-xs bg-slate-100 text-slate-800 px-2.5 py-0.5 rounded-md font-semibold border border-slate-200"
+                                      >
+                                        👤 {s.nama}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    <span className="text-xs text-slate-400 italic">
+                                      Belum ada staf khusus (akses oleh Full Access)
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Control Actions */}
+                            <div className="flex items-center gap-2 self-end md:self-center shrink-0 flex-wrap">
+                              {isGroup && canEditItem && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenAddLink(item.id, 'Link')}
+                                  className="px-3 sm:px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                                  title="Tambah anak link ke dalam grup ini"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                  <span>+ Sub-link</span>
+                                </button>
+                              )}
+
+                              {isFullAccess && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenAssignStaff(item)}
+                                  className="px-3 sm:px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs sm:text-sm font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors border border-indigo-200 shadow-2xs"
+                                  title="Atur siapa staf yang boleh mengedit link ini"
+                                >
+                                  <Users className="w-4 h-4" />
+                                  <span>Atur Staf PIC</span>
+                                </button>
+                              )}
+
+                              {canEditItem ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditLink(item)}
+                                  className="p-2 rounded-xl bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-700 transition-colors cursor-pointer"
+                                  title="Edit informasi tautan"
+                                >
+                                  <Edit2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                                </button>
                               ) : (
-                                <span className="text-xs text-slate-400 italic">
-                                  Belum ada staf khusus (akses oleh Admin &amp; Engineer)
+                                <span
+                                  className="text-xs text-slate-400 font-bold px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 inline-flex items-center gap-1.5"
+                                  title="Terkunci: Anda tidak memiliki wewenang untuk mengedit tautan ini"
+                                >
+                                  <Lock className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>Terkunci</span>
                                 </span>
+                              )}
+
+                              {isFullAccess && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteLink(item)}
+                                  className="p-2 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-700 transition-colors cursor-pointer"
+                                  title="Hapus tautan/grup"
+                                >
+                                  <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                                </button>
                               )}
                             </div>
                           </div>
-                        </div>
-
-                        {/* Control Actions: Assign Staff, Edit, Delete */}
-                        <div className="flex items-center gap-2 self-end md:self-center shrink-0 flex-wrap">
-                          {isGroup && (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenAddLink(item.id, 'Link')}
-                              className="px-3 sm:px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
-                              title="Tambah anak link ke dalam grup ini"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                              <span>+ Sub-link</span>
-                            </button>
-                          )}
-
-                          <button
-                            type="button"
-                            onClick={() => handleOpenAssignStaff(item)}
-                            className="px-3 sm:px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs sm:text-sm font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors border border-indigo-200 shadow-2xs"
-                            title="Atur siapa staf yang boleh mengedit link ini"
-                          >
-                            <Users className="w-4 h-4" />
-                            <span>Atur Staf PIC</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditLink(item)}
-                            className="p-2 rounded-xl bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-700 transition-colors cursor-pointer"
-                            title="Edit informasi tautan"
-                          >
-                            <Edit2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteLink(item)}
-                            className="p-2 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-700 transition-colors cursor-pointer"
-                            title="Hapus tautan/grup"
-                          >
-                            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                          </button>
-                        </div>
-                      </div>
+                        );
+                      })()}
 
                       {/* Sub-Links inside Group */}
                       {isGroup && children.length > 0 && (
@@ -1220,111 +1412,169 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                           </span>
 
                           <div className="divide-y divide-slate-200">
-                            {children.map((child, cIdx) => {
-                              const isChildAktif = String(child.aktif).toUpperCase() === 'TRUE';
-                              const isFirstChild = cIdx === 0;
-                              const isLastChild = cIdx === children.length - 1;
-                              const childStaff = staffList.filter(
-                                (s) =>
-                                  (child.allowedStaffIds || []).includes(s.id) ||
-                                  (s.allowedLinkIds || []).includes(child.id) ||
-                                  s.allowedLinkIds?.includes('*')
-                              );
+                            {(() => {
+                              const displayedChildren = (!isFullAccess && displayScope === 'my_scope')
+                                ? children.filter((c) => checkCanEdit(c))
+                                : children;
 
-                              return (
-                                <div
-                                  key={child.id}
-                                  className="py-2.5 sm:py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
-                                >
-                                  <div className="flex items-center gap-2.5 min-w-0">
-                                    <div className="flex flex-col gap-0.5 shrink-0">
-                                      <button
-                                        type="button"
-                                        onClick={() => handleMoveUrutan(child.id, 'up', item.id)}
-                                        disabled={isFirstChild}
-                                        className="text-slate-400 hover:text-slate-700 disabled:opacity-20 cursor-pointer"
-                                      >
-                                        <ArrowUp className="w-3.5 h-3.5" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleMoveUrutan(child.id, 'down', item.id)}
-                                        disabled={isLastChild}
-                                        className="text-slate-400 hover:text-slate-700 disabled:opacity-20 cursor-pointer"
-                                      >
-                                        <ArrowDown className="w-3.5 h-3.5" />
-                                      </button>
-                                    </div>
+                              if (displayedChildren.length === 0) {
+                                return (
+                                  <p className="py-3 text-xs text-slate-400 italic">
+                                    Tidak ada sub-link di dalam grup ini yang ditugaskan ke akun Anda.
+                                  </p>
+                                );
+                              }
 
-                                    <span className="text-2xl shrink-0">{child.icon || '🔗'}</span>
+                              return displayedChildren.map((child, cIdx) => {
+                                const isChildAktif = String(child.aktif).toUpperCase() === 'TRUE';
+                                const isFirstChild = cIdx === 0;
+                                const isLastChild = cIdx === displayedChildren.length - 1;
+                                const canEditChild = checkCanEdit(child);
+                                const childStaff = staffList.filter(
+                                  (s) =>
+                                    (child.allowedStaffIds || []).includes(s.id) ||
+                                    (s.allowedLinkIds || []).includes(child.id) ||
+                                    s.allowedLinkIds?.includes('*')
+                                );
 
-                                    <div className="min-w-0">
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="font-extrabold text-sm sm:text-base text-slate-900 truncate">
-                                          {child.label}
-                                        </span>
+                                return (
+                                  <div
+                                    key={child.id}
+                                    className="py-2.5 sm:py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                                  >
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      <div className="flex flex-col gap-0.5 shrink-0">
                                         <button
                                           type="button"
-                                          onClick={() => handleToggleVisibility(child)}
-                                          className={`text-xs font-bold px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1 cursor-pointer ${
-                                            isChildAktif
-                                              ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                              : 'bg-amber-100 text-amber-800 border-amber-300'
-                                          }`}
+                                          onClick={() => handleMoveUrutan(child.id, 'up', item.id)}
+                                          disabled={isFirstChild || !isFullAccess}
+                                          className="text-slate-400 hover:text-slate-700 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
+                                          title={isFullAccess ? "Pindahkan naik" : "Pengurutan hanya untuk Developer/Site Engineer"}
                                         >
-                                          {isChildAktif ? '🟢 Aktif' : '⚪ Tersembunyi'}
+                                          <ArrowUp className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleMoveUrutan(child.id, 'down', item.id)}
+                                          disabled={isLastChild || !isFullAccess}
+                                          className="text-slate-400 hover:text-slate-700 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
+                                          title={isFullAccess ? "Pindahkan turun" : "Pengurutan hanya untuk Developer/Site Engineer"}
+                                        >
+                                          <ArrowDown className="w-3.5 h-3.5" />
                                         </button>
                                       </div>
 
-                                      {child.url && (
-                                        <p className="text-xs sm:text-sm text-blue-600 truncate mt-1 max-w-lg font-mono">
-                                          {child.url}
-                                        </p>
+                                      <span className="text-2xl shrink-0">{child.icon || '🔗'}</span>
+
+                                      <div className="min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="font-extrabold text-sm sm:text-base text-slate-900 truncate">
+                                            {child.label}
+                                          </span>
+
+                                          {/* Authority Badge */}
+                                          {canEditChild ? (
+                                            <span className="text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                              <span>Wewenang Anda</span>
+                                            </span>
+                                          ) : (
+                                            <span className="text-[11px] font-bold bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                              <Lock className="w-3 h-3 text-slate-400" />
+                                              <span>Terkunci</span>
+                                            </span>
+                                          )}
+
+                                          {/* Visibility Toggle */}
+                                          {canEditChild ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleToggleVisibility(child)}
+                                              className={`text-xs font-bold px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1 cursor-pointer ${
+                                                isChildAktif
+                                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                                  : 'bg-amber-100 text-amber-800 border-amber-300'
+                                              }`}
+                                            >
+                                              {isChildAktif ? '🟢 Aktif' : '⚪ Tersembunyi'}
+                                            </button>
+                                          ) : (
+                                            <span
+                                              className="text-xs font-bold px-2.5 py-0.5 rounded-full border border-slate-200 bg-slate-100 text-slate-400 inline-flex items-center gap-1 cursor-not-allowed opacity-80"
+                                            >
+                                              {isChildAktif ? '🟢 Aktif' : '⚪ Tersembunyi'}
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        {child.url && (
+                                          <p className="text-xs sm:text-sm text-blue-600 truncate mt-1 max-w-lg font-mono">
+                                            {child.url}
+                                          </p>
+                                        )}
+
+                                        {/* Assigned PIC staff badge for child */}
+                                        {childStaff.length > 0 && (
+                                          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                            <span className="text-xs text-slate-500 font-bold">PIC:</span>
+                                            {childStaff.map((s) => (
+                                              <span
+                                                key={s.id}
+                                                className="text-xs bg-white text-slate-800 px-2 py-0.5 rounded border border-slate-300 font-medium"
+                                              >
+                                                {s.nama}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                                      {isFullAccess && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenAssignStaff(child)}
+                                          className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold border border-indigo-200 cursor-pointer shadow-2xs"
+                                        >
+                                          PIC
+                                        </button>
                                       )}
 
-                                      {/* Assigned PIC staff badge for child */}
-                                      {childStaff.length > 0 && (
-                                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                                          <span className="text-xs text-slate-500 font-bold">PIC:</span>
-                                          {childStaff.map((s) => (
-                                            <span
-                                              key={s.id}
-                                              className="text-xs bg-white text-slate-800 px-2 py-0.5 rounded border border-slate-300 font-medium"
-                                            >
-                                              {s.nama}
-                                            </span>
-                                          ))}
-                                        </div>
+                                      {canEditChild ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenEditLink(child)}
+                                          className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 cursor-pointer"
+                                          title="Edit tautan ini"
+                                        >
+                                          <Edit2 className="w-4 h-4" />
+                                        </button>
+                                      ) : (
+                                        <span
+                                          className="text-xs text-slate-400 font-semibold px-2 py-1 rounded bg-slate-100 border border-slate-200 inline-flex items-center gap-1"
+                                          title="Bukan wewenang Anda"
+                                        >
+                                          <Lock className="w-3.5 h-3.5 text-slate-400" />
+                                          <span>Terkunci</span>
+                                        </span>
+                                      )}
+
+                                      {isFullAccess && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteLink(child)}
+                                          className="p-1.5 rounded-lg hover:bg-rose-100 text-rose-600 cursor-pointer"
+                                          title="Hapus tautan ini"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
                                       )}
                                     </div>
                                   </div>
-
-                                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenAssignStaff(child)}
-                                      className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold border border-indigo-200 cursor-pointer shadow-2xs"
-                                    >
-                                      PIC
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenEditLink(child)}
-                                      className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 cursor-pointer"
-                                    >
-                                      <Edit2 className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteLink(child)}
-                                      className="p-1.5 rounded-lg hover:bg-rose-100 text-rose-600 cursor-pointer"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })}
+                                );
+                              });
+                            })()}
                           </div>
                         </div>
                       )}
@@ -1522,25 +1772,33 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                 <p className="text-sm text-slate-600 font-semibold">
                   Belum ada sesi staf yang aktif.
                 </p>
-                <p className="text-xs text-slate-500 max-w-md mx-auto">
-                  Pilih salah satu nama staf di bawah ini untuk menguji dan mengisi URL tautan sesuai wewenang unit:
-                </p>
-                <div className="flex flex-wrap justify-center gap-2 pt-2">
-                  {staffList.filter((s) => s.aktif).map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveStaffSession(s);
-                        onStaffSessionChange(s);
-                        showToast(`Masuk sebagai: ${s.nama}`);
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-800 text-xs font-bold border border-slate-300 transition-colors cursor-pointer"
-                    >
-                      {s.nama} ({s.jabatan})
-                    </button>
-                  ))}
-                </div>
+                {isFullAccess ? (
+                  <>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto">
+                      Pilih salah satu nama staf di bawah ini untuk menguji dan mengisi URL tautan sesuai wewenang unit:
+                    </p>
+                    <div className="flex flex-wrap justify-center gap-2 pt-2">
+                      {staffList.filter((s) => s.aktif).map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveStaffSession(s);
+                            onStaffSessionChange(s);
+                            showToast(`Masuk sebagai: ${s.nama}`);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-800 text-xs font-bold border border-slate-300 transition-colors cursor-pointer"
+                        >
+                          {s.nama} ({s.jabatan})
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    Silakan masuk kembali melalui pintu login internal dengan email dan PIN staf Anda.
+                  </p>
+                )}
               </div>
             ) : staffAssignedLinks.length === 0 ? (
               <div className="bg-white rounded-2xl p-8 border border-slate-200 text-center text-slate-500 text-xs sm:text-sm">

@@ -292,21 +292,50 @@ export function deleteStoredStaff(id: string): { success: boolean } {
 // Cek Apakah Staf Memiliki Izin Mengedit Link Tertentu
 export function canStaffEditLink(staff: StaffMember | null, linkId: string, linkItem?: LinkItem): boolean {
   if (!staff || !staff.aktif) return false;
-  // Akses penuh untuk Developer, Site Engineer, Admin, Project Manager, Manajer operasional, atau wildcard '*'
+
+  // 1. Akses Penuh Mutlak (Full Access): Developer, Site Engineer, Manajer operasional, atau wildcard '*'
+  const jab = (staff.jabatan || '').toLowerCase().trim();
   if (
     staff.allowedLinkIds.includes('*') ||
-    staff.jabatan === 'Developer' ||
-    staff.jabatan === 'Site Engineer' ||
-    staff.jabatan === 'Admin' ||
-    staff.jabatan === 'Project Manager' ||
-    staff.jabatan === 'Manajer operasional'
+    jab === 'developer' ||
+    jab === 'site engineer' ||
+    jab === 'manajer operasional'
   ) {
     return true;
   }
+
+  // 2. Cek apakah linkItem secara eksplisit memuat ID staf ini di allowedStaffIds
   if (linkItem && Array.isArray(linkItem.allowedStaffIds) && linkItem.allowedStaffIds.includes(staff.id)) {
     return true;
   }
-  return Array.isArray(staff.allowedLinkIds) && staff.allowedLinkIds.includes(linkId);
+
+  // 3. Cek apakah allowedLinkIds milik staf memuat linkId ini langsung
+  if (Array.isArray(staff.allowedLinkIds) && staff.allowedLinkIds.includes(linkId)) {
+    return true;
+  }
+
+  // 4. Jika linkItem memiliki parentId (berada dalam grup) dan staf diberi akses ke grup induk tersebut
+  if (linkItem && linkItem.parentId && Array.isArray(staff.allowedLinkIds) && staff.allowedLinkIds.includes(linkItem.parentId)) {
+    return true;
+  }
+
+  // 5. Periksa jika linkItem belum disediakan tapi tersimpan di database lokal
+  try {
+    const allStored = getStoredLinks();
+    const current = linkItem || allStored.find((l) => l.id === linkId);
+    if (current) {
+      if (Array.isArray(current.allowedStaffIds) && current.allowedStaffIds.includes(staff.id)) {
+        return true;
+      }
+      if (current.parentId && Array.isArray(staff.allowedLinkIds) && staff.allowedLinkIds.includes(current.parentId)) {
+        return true;
+      }
+    }
+  } catch {
+    // fallback
+  }
+
+  return false;
 }
 
 // Perbarui Tautan Khusus Oleh Staf (Hanya untuk link yang diizinkan)

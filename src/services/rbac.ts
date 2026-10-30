@@ -55,26 +55,26 @@ export const ROLE_PERMISSIONS: Record<Role, RolePermission> = {
   },
   Admin: {
     role: 'Admin',
-    title: 'Administrator Sistem (Superuser)',
+    title: 'Admin Unit / Staf PIC Terdaftar',
     icon: '⚙️',
     badgeColor: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-    deskripsi: 'Akses penuh tanpa batas: tambah, sunting, dan hapus link/grup, reorder posisi, konfigurasi integrasi Headless GAS, dan kelola hak akses.',
+    deskripsi: 'Akses terarah: hanya dapat mengedit dan memperbarui tautan/grup yang secara resmi diberikan wewenang pada pengaturan.',
     canViewAllLinks: true,
-    canEditLinks: true,
-    canAccessGasCenter: true,
+    canEditLinks: false, // Hanya tautan wewenang sendiri
+    canAccessGasCenter: false,
     canViewAnalytics: true,
-    canConfigureRoles: true,
+    canConfigureRoles: false,
     priorityCategories: ['Operasional & Lini', 'Formulir & Shift', 'Kendali Mutu (QC)', 'K3LH & SOP', 'Kontak & Database'],
   },
 };
 
-export function hasFullAccessRole(role: Role): boolean {
+export function hasFullAccessRole(role?: Role | string | null): boolean {
+  if (!role) return false;
+  const r = role.toLowerCase().trim();
   return (
-    role === 'Developer' ||
-    role === 'Site Engineer' ||
-    role === 'Project Manager' ||
-    role === 'Manajer operasional' ||
-    role === 'Admin'
+    r === 'developer' ||
+    r === 'site engineer' ||
+    r === 'manajer operasional'
   );
 }
 
