@@ -571,11 +571,17 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
       return;
     }
 
+    const cleanEmail = staffEmail.trim().toLowerCase();
+    if (!cleanEmail) {
+      showAlert('Email perusahaan wajib diisi agar staf dapat login.');
+      return;
+    }
+
     const payload: Partial<StaffMember> = {
       id: editingStaff?.id,
       nama: staffNama.trim(),
       jabatan: staffJabatan.trim(),
-      email: staffEmail.trim() || `${staffNama.toLowerCase().replace(/[^a-z0-9]/g, '')}@batukarang.co.id`,
+      email: cleanEmail,
       unit: staffUnit,
       pin: staffPin.trim() || DEFAULT_STAFF_PIN,
       allowedLinkIds: staffAllowedLinkIds,
@@ -2643,6 +2649,22 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                 </div>
               </div>
 
+              {/* Email Perusahaan / Login */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Email Perusahaan / Akun Login *</label>
+                <input
+                  type="email"
+                  value={staffEmail}
+                  onChange={(e) => setStaffEmail(e.target.value)}
+                  placeholder="contoh: nama.staf@batukarang.co.id"
+                  required
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <span className="text-[10px] text-slate-500 mt-1 block">
+                  Email ini digunakan staf untuk masuk via pintu login internal dan dapat diubah kapan saja.
+                </span>
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">PIN Akses Staf</label>
@@ -2671,10 +2693,32 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
               {/* Tautan yang Boleh Diedit Staf Ini */}
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Pilih Tautan yang Boleh Diedit Staf Ini:
-                </label>
-                <div className="max-h-40 overflow-y-auto bg-slate-50 rounded-xl border border-slate-200 p-2 space-y-1">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-slate-700">
+                    Pilih Tautan yang Boleh Diedit Staf Ini ({staffAllowedLinkIds.length} dipilih):
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const selectableIds = flatLinks.filter((l) => l.tipe !== 'Grup').map((l) => l.id);
+                        setStaffAllowedLinkIds(selectableIds);
+                      }}
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                    >
+                      ✓ Pilih Semua
+                    </button>
+                    <span className="text-slate-300 text-xs">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setStaffAllowedLinkIds([])}
+                      className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer"
+                    >
+                      Batal Pilih
+                    </button>
+                  </div>
+                </div>
+                <div className="max-h-48 overflow-y-auto bg-slate-50 rounded-xl border border-slate-200 p-2 space-y-1">
                   {flatLinks
                     .filter((l) => l.tipe !== 'Grup')
                     .map((item) => {
@@ -2682,7 +2726,9 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                       return (
                         <label
                           key={item.id}
-                          className="flex items-center gap-2 text-xs text-slate-700 hover:bg-white p-1 rounded cursor-pointer"
+                          className={`flex items-center gap-2 text-xs p-1.5 rounded cursor-pointer transition-colors ${
+                            isChecked ? 'bg-blue-50 font-bold text-blue-900 border border-blue-200' : 'text-slate-700 hover:bg-white'
+                          }`}
                         >
                           <input
                             type="checkbox"
@@ -2694,7 +2740,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                                 setStaffAllowedLinkIds((prev) => prev.filter((id) => id !== item.id));
                               }
                             }}
-                            className="w-3.5 h-3.5 text-blue-600 rounded"
+                            className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
                           />
                           <span className="truncate">{item.label}</span>
                         </label>
