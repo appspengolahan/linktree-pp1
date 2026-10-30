@@ -44,8 +44,9 @@ import {
   getDeletedLinkIds,
   getDeletedLinkLabels,
   mergeRemoteLinksWithLocal,
+  recordActivityLog,
 } from './services/storage';
-import { fetchGasLinks, postGasRecordClick, pushGasAllLinks } from './services/gasApi';
+import { fetchGasLinks, postGasRecordClick, pushGasAllLinks, postGasRecordActivity } from './services/gasApi';
 import { isLinkRelevantForRole, hasFullAccessRole } from './services/rbac';
 
 import { CompanyLoginGate } from './components/CompanyLoginGate';
@@ -305,8 +306,22 @@ export default function App() {
 
   const handleClickLink = (id: string) => {
     recordLocalClick(id);
+
+    // Temukan detail tautan dan pengguna aktif untuk audit trail
+    const target = links.find((l) => l.id === id);
+    const currentUser = getAuthenticatedCompanyUser();
+    const actLog = recordActivityLog({
+      userEmail: currentUser?.email || 'divisi1.bkr@gmail.com',
+      userName: currentUser?.nama || 'Staf Internal',
+      actionType: 'KLIK_LINK',
+      targetLabel: target?.label || id,
+      targetUrl: target?.url || '',
+      targetId: id,
+    });
+
     if (gasConfig.webAppUrl) {
       postGasRecordClick(gasConfig.webAppUrl, id);
+      postGasRecordActivity(gasConfig.webAppUrl, actLog, gasConfig.adminPasscode);
     }
     setLinks((prev) =>
       prev.map((l) => (l.id === id ? { ...l, klik: (l.klik || 0) + 1 } : l))

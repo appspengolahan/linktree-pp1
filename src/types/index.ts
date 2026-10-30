@@ -168,3 +168,28 @@ export interface CompanyUser {
   loginAt: string;
 }
 
+export interface UserAccessRecord {
+  id: string;
+  email: string;
+  nama: string;
+  jabatan?: string;
+  peran?: string;
+  pertamaKaliLogin: string; // DD/MM/YYYY HH:mm
+  pertamaLogin?: string;
+  terakhirAkses: string;    // DD/MM/YYYY HH:mm
+  totalAkses: number;       // Counter frekuensi login
+  status: 'Aktif' | 'Nonaktif';
+}
+
+export interface ActivityLogEntry {
+  id: string;
+  timestamp: number;
+  waktuStr: string;        // DD/MM/YYYY HH:mm:ss
+  userEmail: string;
+  userName: string;
+  actionType: 'LOGIN' | 'KLIK_LINK' | 'BUKA_GRUP';
+  targetLabel: string;     // Judul link atau grup yang diakses
+  targetUrl?: string;
+  targetId?: string;
+}
+

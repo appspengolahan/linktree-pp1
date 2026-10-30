@@ -1,4 +1,4 @@
-import { LinkItem, StatistikData } from '../types';
+import { LinkItem, StatistikData, UserAccessRecord, ActivityLogEntry } from '../types';
 
 export interface PingResult {
   success: boolean;
@@ -325,6 +325,82 @@ export function postGasRecordClick(url: string, id: string): void {
 }
 
 /**
+ * Catat atau perbarui akses login user ke sheet User_Akses (Upsert via GAS - tanpa duplikasi email)
+ */
+export async function postGasRecordUserLogin(
+  url: string,
+  user: UserAccessRecord,
+  passcode: string = 'bkr153'
+): Promise<{ success: boolean; error?: string }> {
+  if (!url) return { success: false, error: 'URL GAS belum dikonfigurasi' };
+  try {
+    const payload = {
+      action: 'recordUserAccess',
+      user,
+      passcode,
+    };
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload),
+        redirect: 'follow',
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json && (json.success || json.ok)) return { success: true };
+      }
+    } catch {
+      // fallback to GET
+    }
+
+    const fallbackUrl = new URL(url);
+    fallbackUrl.searchParams.set('action', 'recordUserAccess');
+    fallbackUrl.searchParams.set('user', JSON.stringify(user));
+    fallbackUrl.searchParams.set('passcode', passcode);
+    fetch(fallbackUrl.toString(), { mode: 'no-cors' }).catch(() => {});
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * Catat riwayat aktivitas tautan atau login ke sheet Log_Aktivitas (fire and forget)
+ */
+export function postGasRecordActivity(
+  url: string,
+  log: ActivityLogEntry,
+  passcode: string = 'bkr153'
+): void {
+  if (!url) return;
+  try {
+    const payload = {
+      action: 'recordActivity',
+      log,
+      passcode,
+    };
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+      mode: 'no-cors',
+    }).catch(() => {
+      // Fallback ke GET
+      const fallbackUrl = new URL(url);
+      fallbackUrl.searchParams.set('action', 'recordActivity');
+      fallbackUrl.searchParams.set('log', JSON.stringify(log));
+      fallbackUrl.searchParams.set('passcode', passcode);
+      fetch(fallbackUrl.toString(), { mode: 'no-cors' }).catch(() => {});
+    });
+  } catch {
+    // Ignore error
+  }
+}
+
+
+/**
  * Hasilkan kode Code.gs yang sudah dioptimalkan untuk Google Spreadsheet PT Batu Karang
  */
 export function generateProductionCodeGs(): string {
@@ -358,6 +434,8 @@ export function generateProductionCodeGs(): string {
 
 const SHEET_NAME = 'LinkTree';
 const SHEET_STATISTIK = 'Statistik';
+const SHEET_USER_AKSES = 'User_Akses';
+const SHEET_LOG_AKTIVITAS = 'Log_Aktivitas';
 
 const KATEGORI_OPTIONS = [
   'Operasional & Lini',
@@ -373,6 +451,8 @@ const HEADERS = [
 ];
 
 const STATISTIK_HEADERS = ['Tanggal', 'Kunjungan'];
+const USER_AKSES_HEADERS = ['Email', 'Nama', 'Peran', 'TotalAkses', 'PertamaLogin', 'TerakhirAkses', 'Status'];
+const LOG_AKTIVITAS_HEADERS = ['Waktu', 'Email', 'Nama', 'Aksi', 'TargetLabel', 'TargetURL'];
 const ADMIN_TOKEN_TTL_SECONDS = 6 * 60 * 60; // 6 Jam
 
 // ------------------------------------------------------------
@@ -444,6 +524,22 @@ function doGet(e) {
       return jsonResponse_(res);
     }
 
+    // Catat / update login pengguna tanpa duplikasi email (fallback GET)
+    if (action === 'recordUserAccess') {
+      const rawUser = (e && e.parameter && e.parameter.user) || '{}';
+      const userObj = typeof rawUser === 'string' ? JSON.parse(rawUser) : rawUser;
+      const res = recordUserAccess_(userObj);
+      return jsonResponse_(res);
+    }
+
+    // Catat log aktivitas tautan / kunjungan (fallback GET)
+    if (action === 'recordActivity') {
+      const rawLog = (e && e.parameter && e.parameter.log) || '{}';
+      const logObj = typeof rawLog === 'string' ? JSON.parse(rawLog) : rawLog;
+      const res = recordActivity_(logObj);
+      return jsonResponse_(res);
+    }
+
     return jsonResponse_({ ok: false, message: 'Aksi tidak dikenal: ' + action });
   } catch (err) {
     return jsonResponse_({ ok: false, error: err.message });
@@ -483,6 +579,18 @@ function doPost(e) {
       const id = payload.id;
       if (id) recordClick_(id);
       return jsonResponse_({ ok: true });
+    }
+
+    // Catat / update login pengguna (upsert tanpa duplikasi email)
+    if (action === 'recordUserAccess') {
+      const res = recordUserAccess_(payload.user);
+      return jsonResponse_(res);
+    }
+
+    // Catat riwayat audit aktivitas tautan
+    if (action === 'recordActivity') {
+      const res = recordActivity_(payload.log);
+      return jsonResponse_(res);
     }
 
     // Admin Privileged Operations (Push to Sheet)
@@ -859,10 +967,83 @@ function getStatistik_() {
   };
 }
 
+function getUserAksesSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_USER_AKSES);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_USER_AKSES);
+    sheet.appendRow(USER_AKSES_HEADERS);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function getLogAktivitasSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_LOG_AKTIVITAS);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_LOG_AKTIVITAS);
+    sheet.appendRow(LOG_AKTIVITAS_HEADERS);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function recordUserAccess_(user) {
+  if (!user || !user.email) return { success: false, message: 'Email tidak boleh kosong' };
+  const sheet = getUserAksesSheet_();
+  const data = sheet.getDataRange().getValues();
+  const targetEmail = String(user.email).trim().toLowerCase();
+  const nowIso = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+
+  // Cari baris email yang sama (Anti-Duplikasi baris baru)
+  for (let r = 1; r < data.length; r++) {
+    const rowEmail = String(data[r][0] || '').trim().toLowerCase();
+    if (rowEmail === targetEmail) {
+      // Sudah pernah login sebelumnya: update jumlah login (+1) dan waktu terakhir akses
+      const currentCount = Number(data[r][3]) || 1;
+      const updatedCount = currentCount + 1;
+      sheet.getRange(r + 1, 2).setValue(user.nama || data[r][1]);
+      if (user.peran) sheet.getRange(r + 1, 3).setValue(user.peran);
+      sheet.getRange(r + 1, 4).setValue(updatedCount);
+      sheet.getRange(r + 1, 6).setValue(nowIso);
+      sheet.getRange(r + 1, 7).setValue('Aktif');
+      return { success: true, updated: true, totalAkses: updatedCount };
+    }
+  }
+
+  // Belum pernah login: tambahkan baris baru
+  const newRow = sheet.getLastRow() + 1;
+  sheet.getRange(newRow, 1).setNumberFormat('@').setValue(user.email.trim());
+  sheet.getRange(newRow, 2).setValue(user.nama || '-');
+  sheet.getRange(newRow, 3).setValue(user.peran || 'Pengguna');
+  sheet.getRange(newRow, 4).setValue(Number(user.totalAkses) || 1);
+  sheet.getRange(newRow, 5).setValue(user.pertamaLogin || nowIso);
+  sheet.getRange(newRow, 6).setValue(user.terakhirAkses || nowIso);
+  sheet.getRange(newRow, 7).setValue('Aktif');
+  return { success: true, inserted: true, totalAkses: 1 };
+}
+
+function recordActivity_(log) {
+  if (!log) return { success: false };
+  const sheet = getLogAktivitasSheet_();
+  const nowIso = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+  const newRow = sheet.getLastRow() + 1;
+  sheet.getRange(newRow, 1).setValue(log.timestamp || nowIso);
+  sheet.getRange(newRow, 2).setNumberFormat('@').setValue(log.userEmail || '-');
+  sheet.getRange(newRow, 3).setValue(log.userName || '-');
+  sheet.getRange(newRow, 4).setValue(log.actionType || 'AKSES');
+  sheet.getRange(newRow, 5).setValue(log.targetLabel || '-');
+  sheet.getRange(newRow, 6).setValue(log.targetUrl || '-');
+  return { success: true };
+}
+
 function authorizeApp() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = getSheet_();
   const stat = getStatistikSheet_();
+  const userSheet = getUserAksesSheet_();
+  const logSheet = getLogAktivitasSheet_();
   Logger.log('PT Batu Karang Hub diinisialisasi pada: ' + ss.getName());
 }
 

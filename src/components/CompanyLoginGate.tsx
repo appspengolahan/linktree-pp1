@@ -18,7 +18,11 @@ import {
   saveAuthenticatedCompanyUser,
   setActiveStaffSession,
   saveUserRole,
+  recordUserLoginAccess,
+  recordActivityLog,
+  getGasConfig,
 } from '../services/storage';
+import { postGasRecordUserLogin, postGasRecordActivity } from '../services/gasApi';
 import { Logo153 } from './Logo153';
 
 interface CompanyLoginGateProps {
@@ -128,6 +132,29 @@ export const CompanyLoginGate: React.FC<CompanyLoginGateProps> = ({
     // Simpan ke local cache agar kunjungan berikutnya otomatis lolos tanpa login ulang
     if (rememberMe) {
       saveAuthenticatedCompanyUser(companyUser);
+    }
+
+    // 1. Catat akses login user (Upsert: anti-duplikasi, frekuensi akses bertambah)
+    const { record: accessRecord } = recordUserLoginAccess({
+      nama: cleanNama,
+      email: cleanEmail,
+      jabatan: determinedJabatan,
+    });
+
+    // 2. Catat riwayat aktivitas login (Audit Trail)
+    const loginLog = recordActivityLog({
+      userEmail: cleanEmail,
+      userName: cleanNama,
+      actionType: 'LOGIN',
+      targetLabel: 'Portal Masuk Divisi Produksi I',
+      targetUrl: window.location.href,
+    });
+
+    // 3. Sinkronisasikan ke Google Spreadsheet secara instan di latar belakang
+    const gasCfg = getGasConfig();
+    if (gasCfg.webAppUrl) {
+      postGasRecordUserLogin(gasCfg.webAppUrl, accessRecord, gasCfg.adminPasscode).catch(() => {});
+      postGasRecordActivity(gasCfg.webAppUrl, loginLog, gasCfg.adminPasscode);
     }
 
     // Jika user adalah staf terdaftar, aktifkan sesi staf sekaligus agar wewenang edit langsung terbuka

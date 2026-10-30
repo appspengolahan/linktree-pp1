@@ -46,6 +46,8 @@ import {
   DEFAULT_STAFF_PIN,
   StaffFeatureKey,
   SYSTEM_FEATURES,
+  UserAccessRecord,
+  ActivityLogEntry,
 } from '../types';
 import { Logo153 } from './Logo153';
 import {
@@ -70,6 +72,9 @@ import {
   updateLinkByStaff,
   getAuthenticatedCompanyUser,
   mergeRemoteLinksWithLocal,
+  getStoredUserAccessList,
+  getStoredActivityLogs,
+  clearStoredActivityLogs,
 } from '../services/storage';
 import { pushGasLink, pushGasDeleteLink, pushGasAllLinks, fetchGasLinks } from '../services/gasApi';
 import { hasFullAccessRole, canStaffAccessFeature } from '../services/rbac';
@@ -221,6 +226,14 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
   // Trend Chart State
   const [trendRange, setTrendRange] = useState<'7d' | '14d'>('7d');
   const [selectedDayIdx, setSelectedDayIdx] = useState<number | null>(null);
+
+  // User Access & Activity Log State (Pencatatan User Tanpa Duplikasi & Counter Akses)
+  const [userAccessList, setUserAccessList] = useState<UserAccessRecord[]>(() => getStoredUserAccessList());
+  const [activityLogs, setActivityLogs] = useState<ActivityLogEntry[]>(() => getStoredActivityLogs());
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [userSortBy, setUserSortBy] = useState<'totalAkses' | 'terakhirAkses' | 'nama'>('totalAkses');
+  const [logSearchTerm, setLogSearchTerm] = useState('');
+  const [logFilterAction, setLogFilterAction] = useState<'ALL' | 'LOGIN' | 'KLIK_LINK'>('ALL');
 
   // Central Pop-up Dialog State (Pengganti window.confirm / window.alert native browser)
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -838,6 +851,93 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
     if (!stats.trend14Hari || stats.trend14Hari.length === 0) return [];
     return trendRange === '7d' ? stats.trend14Hari.slice(-7) : stats.trend14Hari;
   }, [stats.trend14Hari, trendRange]);
+
+  // Muat ulang daftar akses user dan audit logs saat tab statistik dibuka
+  useEffect(() => {
+    if (activeTab === 'stats') {
+      setUserAccessList(getStoredUserAccessList());
+      setActivityLogs(getStoredActivityLogs());
+    }
+  }, [activeTab]);
+
+  const filteredUserAccessList = useMemo(() => {
+    const term = userSearchTerm.trim().toLowerCase();
+    let result = userAccessList.filter((u) => {
+      if (!term) return true;
+      return (
+        u.nama.toLowerCase().includes(term) ||
+        u.email.toLowerCase().includes(term) ||
+        (u.jabatan && u.jabatan.toLowerCase().includes(term))
+      );
+    });
+
+    if (userSortBy === 'totalAkses') {
+      result = [...result].sort((a, b) => (Number(b.totalAkses) || 0) - (Number(a.totalAkses) || 0));
+    } else if (userSortBy === 'terakhirAkses') {
+      result = [...result].sort((a, b) => (b.terakhirAkses || '').localeCompare(a.terakhirAkses || ''));
+    } else if (userSortBy === 'nama') {
+      result = [...result].sort((a, b) => a.nama.localeCompare(b.nama));
+    }
+    return result;
+  }, [userAccessList, userSearchTerm, userSortBy]);
+
+  const filteredActivityLogs = useMemo(() => {
+    const term = logSearchTerm.trim().toLowerCase();
+    return activityLogs.filter((log) => {
+      if (logFilterAction !== 'ALL' && log.actionType !== logFilterAction) {
+        return false;
+      }
+      if (!term) return true;
+      return (
+        log.userName.toLowerCase().includes(term) ||
+        log.userEmail.toLowerCase().includes(term) ||
+        log.targetLabel.toLowerCase().includes(term)
+      );
+    });
+  }, [activityLogs, logSearchTerm, logFilterAction]);
+
+  const totalUserLogins = useMemo(() => {
+    return userAccessList.reduce((sum, u) => sum + (Number(u.totalAkses) || 0), 0);
+  }, [userAccessList]);
+
+  const handleClearActivityLogs = () => {
+    openConfirm(
+      'Apakah Anda yakin ingin mengosongkan seluruh riwayat aktivitas kunjungan & klik? Tindakan ini tidak dapat dibatalkan.',
+      () => {
+        clearStoredActivityLogs();
+        setActivityLogs([]);
+        showToast('Riwayat aktivitas telah dibersihkan.');
+      },
+      { title: 'Konfirmasi Hapus Riwayat', confirmLabel: 'Hapus Semua', cancelLabel: 'Batal' }
+    );
+  };
+
+  const handleExportUserAccessCSV = () => {
+    if (userAccessList.length === 0) {
+      showAlert('Belum ada data user yang login untuk diunduh.');
+      return;
+    }
+    const headers = ['ID Pengguna', 'Email', 'Nama Lengkap', 'Jabatan', 'Total Akses / Login', 'Pertama Kali Akses', 'Terakhir Akses', 'Status'];
+    const rows = userAccessList.map((u) => [
+      `"${u.id}"`,
+      `"${u.email}"`,
+      `"${u.nama}"`,
+      `"${u.jabatan || '-'}"`,
+      u.totalAkses,
+      `"${u.pertamaKaliLogin}"`,
+      `"${u.terakhirAkses}"`,
+      `"${u.status}"`,
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `rekap_akses_pengguna_bkr_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Rekap akses pengguna berhasil diunduh (CSV).');
+  };
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans selection:bg-blue-100 selection:text-blue-900">
@@ -2209,7 +2309,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
         {/* ============================== TAB 5: STATISTIK & ANALITIK ============================== */}
         {activeTab === 'stats' && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {/* Top Metric Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <div className="bg-slate-900 text-white rounded-2xl p-4 sm:p-5 shadow-xs">
@@ -2219,7 +2319,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                 <div className="text-2xl sm:text-3xl font-black mt-1">
                   {(stats.totalKunjungan || 0).toLocaleString()}
                 </div>
-                <span className="text-xs text-slate-400 mt-0.5 block">Semua perangkat</span>
+                <span className="text-xs text-slate-400 mt-0.5 block">Portal publik & internal</span>
               </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 sm:p-5 shadow-2xs">
@@ -2232,133 +2332,468 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                 <span className="text-xs text-blue-600 mt-0.5 block">Shift 1, 2, dan 3</span>
               </div>
 
+              <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 sm:p-5 shadow-2xs">
+                <span className="text-xs sm:text-sm text-indigo-700 font-bold block uppercase tracking-wider">
+                  Pengguna Terdaftar
+                </span>
+                <div className="text-2xl sm:text-3xl font-black text-indigo-900 mt-1">
+                  {userAccessList.length} <span className="text-sm font-semibold text-indigo-600">Akun Unik</span>
+                </div>
+                <span className="text-xs text-indigo-600 mt-0.5 block">Tersimpan di Sheet User_Akses</span>
+              </div>
+
               <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 sm:p-5 shadow-2xs">
                 <span className="text-xs sm:text-sm text-emerald-700 font-bold block uppercase tracking-wider">
-                  Total Klik Tautan
+                  Total Frekuensi Login
                 </span>
                 <div className="text-2xl sm:text-3xl font-black text-emerald-900 mt-1">
-                  {(stats.totalKlik || 0).toLocaleString()}
+                  {totalUserLogins.toLocaleString()} <span className="text-sm font-semibold text-emerald-600">Kali</span>
                 </div>
-                <span className="text-xs text-emerald-600 mt-0.5 block">Akses dokumen pabrik</span>
-              </div>
-
-              <div className="bg-slate-100 border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-2xs">
-                <span className="text-xs sm:text-sm text-slate-600 font-bold block uppercase tracking-wider">
-                  Tautan Aktif
-                </span>
-                <div className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">
-                  {flatLinks.filter((l) => String(l.aktif).toUpperCase() === 'TRUE').length}
-                </div>
-                <span className="text-xs text-slate-500 mt-0.5 block">Tampil di portal publik</span>
+                <span className="text-xs text-emerald-600 mt-0.5 block">Akumulasi login seluruh staf</span>
               </div>
             </div>
 
-            {/* Trend Chart */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3.5">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <h4 className="text-sm sm:text-base font-extrabold uppercase tracking-wider text-slate-800">
-                    Grafik Tren Kunjungan Harian
-                  </h4>
-                  <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                    Aktivitas personil membuka portal per hari
-                  </p>
+            {/* Grid 2 Kolom: Trend Chart & Top Links */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Trend Chart */}
+              <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-sm sm:text-base font-extrabold uppercase tracking-wider text-slate-800">
+                      Grafik Tren Kunjungan Harian
+                    </h4>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                      Aktivitas personil membuka portal per hari
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl text-xs font-bold">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTrendRange('7d');
+                        setSelectedDayIdx(null);
+                      }}
+                      className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+                        trendRange === '7d' ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-600'
+                      }`}
+                    >
+                      7 Hari
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTrendRange('14d');
+                        setSelectedDayIdx(null);
+                      }}
+                      className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+                        trendRange === '14d' ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-600'
+                      }`}
+                    >
+                      14 Hari
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl text-xs font-bold">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTrendRange('7d');
-                      setSelectedDayIdx(null);
-                    }}
-                    className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
-                      trendRange === '7d' ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-600'
-                    }`}
-                  >
-                    7 Hari
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTrendRange('14d');
-                      setSelectedDayIdx(null);
-                    }}
-                    className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
-                      trendRange === '14d' ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-600'
-                    }`}
-                  >
-                    14 Hari
-                  </button>
-                </div>
-              </div>
+                {trendDisplayData.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-6 text-center">Belum ada riwayat kunjungan.</p>
+                ) : (
+                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                    <div className="flex items-end gap-1.5 sm:gap-3 h-36 pt-4 pb-1 w-full">
+                      {(() => {
+                        const maxVal = Math.max(...trendDisplayData.map((d) => d.jumlah), 1);
+                        return trendDisplayData.map((day, idx) => {
+                          const isSelected =
+                            (selectedDayIdx === null && idx === trendDisplayData.length - 1) ||
+                            selectedDayIdx === idx;
+                          const pct = Math.max(12, Math.round((day.jumlah / maxVal) * 100));
+                          const shortDate = (day.tanggal || '').slice(5).replace('-', '/');
 
-              {trendDisplayData.length === 0 ? (
-                <p className="text-xs text-slate-400 py-6 text-center">Belum ada riwayat kunjungan.</p>
-              ) : (
-                <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-                  <div className="flex items-end gap-1.5 sm:gap-3 h-36 pt-4 pb-1 w-full">
-                    {(() => {
-                      const maxVal = Math.max(...trendDisplayData.map((d) => d.jumlah), 1);
-                      return trendDisplayData.map((day, idx) => {
-                        const isSelected =
-                          (selectedDayIdx === null && idx === trendDisplayData.length - 1) ||
-                          selectedDayIdx === idx;
-                        const pct = Math.max(12, Math.round((day.jumlah / maxVal) * 100));
-                        const shortDate = (day.tanggal || '').slice(5).replace('-', '/');
-
-                        return (
-                          <div
-                            key={day.tanggal || idx}
-                            onClick={() => setSelectedDayIdx(idx)}
-                            className="flex-1 flex flex-col items-center justify-end h-full cursor-pointer group"
-                            title={`${day.tanggal}: ${day.jumlah} kunjungan`}
-                          >
-                            <span
-                              className={`text-[9px] font-mono font-bold mb-1 ${
-                                isSelected ? 'text-emerald-700' : 'text-slate-500'
-                              }`}
+                          return (
+                            <div
+                              key={day.tanggal || idx}
+                              onClick={() => setSelectedDayIdx(idx)}
+                              className="flex-1 flex flex-col items-center justify-end h-full cursor-pointer group"
+                              title={`${day.tanggal}: ${day.jumlah} kunjungan`}
                             >
-                              {day.jumlah}
-                            </span>
-                            <div className="w-full max-w-[32px] flex items-end justify-center h-full">
-                              <div
-                                style={{ height: `${pct}%` }}
-                                className={`w-full rounded-t-md transition-all ${
-                                  isSelected
-                                    ? 'bg-emerald-600 ring-2 ring-emerald-400'
-                                    : 'bg-blue-600 group-hover:bg-blue-700'
+                              <span
+                                className={`text-[9px] font-mono font-bold mb-1 ${
+                                  isSelected ? 'text-emerald-700' : 'text-slate-500'
                                 }`}
-                              />
+                              >
+                                {day.jumlah}
+                              </span>
+                              <div className="w-full max-w-[32px] flex items-end justify-center h-full">
+                                <div
+                                  style={{ height: `${pct}%` }}
+                                  className={`w-full rounded-t-md transition-all ${
+                                    isSelected
+                                      ? 'bg-emerald-600 ring-2 ring-emerald-400'
+                                      : 'bg-blue-600 group-hover:bg-blue-700'
+                                  }`}
+                                />
+                              </div>
+                              <span className="text-[9px] font-mono mt-1 text-slate-500 truncate">
+                                {shortDate}
+                              </span>
                             </div>
-                            <span className="text-[9px] font-mono mt-1 text-slate-500 truncate">
-                              {shortDate}
-                            </span>
-                          </div>
-                        );
-                      });
-                    })()}
+                          );
+                        });
+                      })()}
+                    </div>
                   </div>
+                )}
+              </div>
+
+              {/* Top Links */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-2xs flex flex-col">
+                <h4 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-800 mb-1">
+                  Tautan Terpopuler
+                </h4>
+                <p className="text-xs text-slate-500 mb-3">Tautan dengan frekuensi akses tertinggi</p>
+                <div className="divide-y divide-slate-100 flex-1 overflow-y-auto max-h-[160px]">
+                  {(stats.topLinks || []).length === 0 ? (
+                    <p className="text-xs text-slate-400 py-4 text-center italic">Belum ada data klik tautan</p>
+                  ) : (
+                    (stats.topLinks || []).map((t, idx) => (
+                      <div key={idx} className="py-2 flex items-center justify-between text-xs">
+                        <span className="font-semibold text-slate-800 truncate max-w-[170px]" title={t.label}>
+                          {idx + 1}. {t.label}
+                        </span>
+                        <span className="font-mono font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+                          {(t.klik || 0).toLocaleString()} klik
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
-              )}
+              </div>
             </div>
 
-            {/* Top Links */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-2xs">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                Tautan Paling Sering Diakses
-              </h4>
-              <div className="divide-y divide-slate-100">
-                {(stats.topLinks || []).map((t, idx) => (
-                  <div key={idx} className="py-2 flex items-center justify-between text-xs">
-                    <span className="font-semibold text-slate-800 truncate">
-                      {idx + 1}. {t.label}
-                    </span>
-                    <span className="font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">
-                      {(t.klik || 0).toLocaleString()} klik
-                    </span>
+            {/* ========================================================================= */}
+            {/* BAGIAN 1: DIREKTORI PENGGUNA & FREKUENSI AKSES (ANTI-DUPLIKASI SHEET) */}
+            {/* ========================================================================= */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-2xs space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                    <Users className="w-5 h-5" />
                   </div>
-                ))}
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-black text-base sm:text-lg text-slate-900">
+                        Direktori Pengguna &amp; Frekuensi Akses
+                      </h3>
+                      <span className="text-[11px] font-bold bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-full border border-indigo-200">
+                        Sheet: User_Akses
+                      </span>
+                    </div>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                      Setiap pengguna yang login dicatat otomatis. Email yang sudah pernah login <strong>tidak akan dibuat baris ganda</strong> di spreadsheet, melainkan dihitung total frekuensi aksesnya.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleExportUserAccessCSV}
+                    className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer border border-slate-200 transition-colors shadow-2xs"
+                    title="Unduh seluruh rekap akses user ke file CSV"
+                  >
+                    <Download className="w-4 h-4 text-indigo-600" />
+                    <span>Ekspor CSV</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Kontrol Pencarian & Pengurutan */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={userSearchTerm}
+                    onChange={(e) => setUserSearchTerm(e.target.value)}
+                    placeholder="Cari nama pengguna atau email..."
+                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  {userSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setUserSearchTerm('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <span className="text-xs font-bold text-slate-500">Urutkan:</span>
+                  <select
+                    value={userSortBy}
+                    onChange={(e) => setUserSortBy(e.target.value as any)}
+                    className="bg-slate-50 border border-slate-300 text-slate-800 text-xs font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    <option value="totalAkses">Frekuensi Akses Tertinggi</option>
+                    <option value="terakhirAkses">Terakhir Akses (Terbaru)</option>
+                    <option value="nama">Nama (A-Z)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Tabel Pengguna */}
+              <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                <table className="w-full text-left text-xs sm:text-sm divide-y divide-slate-200">
+                  <thead className="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider text-[11px]">
+                    <tr>
+                      <th className="py-3 px-3.5 text-center w-12">No</th>
+                      <th className="py-3 px-3.5">Nama &amp; Jabatan</th>
+                      <th className="py-3 px-3.5">Email Pengguna</th>
+                      <th className="py-3 px-3.5 text-center">Frekuensi Akses</th>
+                      <th className="py-3 px-3.5">Pertama Login</th>
+                      <th className="py-3 px-3.5">Terakhir Akses</th>
+                      <th className="py-3 px-3.5 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {filteredUserAccessList.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-8 text-center text-slate-400 text-xs italic">
+                          {userSearchTerm
+                            ? 'Tidak ada pengguna yang cocok dengan pencarian.'
+                            : 'Belum ada pengguna yang tercatat login ke dalam sistem.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredUserAccessList.map((user, idx) => {
+                        const isFrequent = (Number(user.totalAkses) || 0) >= 5;
+                        return (
+                          <tr key={user.id || user.email} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-3 px-3.5 text-center font-mono text-xs text-slate-400">
+                              {idx + 1}
+                            </td>
+                            <td className="py-3 px-3.5">
+                              <div className="font-extrabold text-slate-900">{user.nama}</div>
+                              <div className="text-[11px] text-slate-500 font-medium">
+                                {user.jabatan || user.peran || 'Pengguna'}
+                              </div>
+                            </td>
+                            <td className="py-3 px-3.5 font-mono text-xs text-slate-700">
+                              <span className="bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                                {user.email}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3.5 text-center">
+                              <span
+                                className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black font-mono border ${
+                                  isFrequent
+                                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                    : 'bg-blue-50 text-blue-800 border-blue-200'
+                                }`}
+                              >
+                                {user.totalAkses}x Akses
+                              </span>
+                            </td>
+                            <td className="py-3 px-3.5 text-xs text-slate-600 font-mono">
+                              {user.pertamaKaliLogin || user.pertamaLogin
+                                ? new Date(user.pertamaKaliLogin || user.pertamaLogin || '').toLocaleString('id-ID', {
+                                    dateStyle: 'short',
+                                    timeStyle: 'short',
+                                  })
+                                : '-'}
+                            </td>
+                            <td className="py-3 px-3.5 text-xs text-slate-800 font-mono font-medium">
+                              {user.terakhirAkses
+                                ? new Date(user.terakhirAkses).toLocaleString('id-ID', {
+                                    dateStyle: 'short',
+                                    timeStyle: 'short',
+                                  })
+                                : '-'}
+                            </td>
+                            <td className="py-3 px-3.5 text-center">
+                              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                Aktif
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* ========================================================================= */}
+            {/* BAGIAN 2: RIWAYAT KUNJUNGAN & LINK YANG DIAKSES (AUDIT TRAIL LOG) */}
+            {/* ========================================================================= */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-2xs space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                    <BarChart3 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-black text-base sm:text-lg text-slate-900">
+                        Riwayat Kunjungan &amp; Link yang Diakses (Audit Trail)
+                      </h3>
+                      <span className="text-[11px] font-bold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full border border-blue-200">
+                        Sheet: Log_Aktivitas
+                      </span>
+                    </div>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                      Catatan kronologis interaksi pengguna: siapa yang login dan link dokumen apa saja yang dibuka personil saat bertugas.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleClearActivityLogs}
+                    disabled={activityLogs.length === 0}
+                    className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40 text-slate-600 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                    title="Bersihkan riwayat aktivitas lokal"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                    <span>Bersihkan Riwayat</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Filter Aktivitas & Pencarian */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-bold self-start">
+                  <button
+                    type="button"
+                    onClick={() => setLogFilterAction('ALL')}
+                    className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                      logFilterAction === 'ALL'
+                        ? 'bg-white text-blue-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Semua ({activityLogs.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLogFilterAction('KLIK_LINK')}
+                    className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                      logFilterAction === 'KLIK_LINK'
+                        ? 'bg-white text-blue-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    🔗 Klik Link ({activityLogs.filter((l) => l.actionType === 'KLIK_LINK').length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLogFilterAction('LOGIN')}
+                    className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                      logFilterAction === 'LOGIN'
+                        ? 'bg-white text-blue-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    🔑 Login Akun ({activityLogs.filter((l) => l.actionType === 'LOGIN').length})
+                  </button>
+                </div>
+
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={logSearchTerm}
+                    onChange={(e) => setLogSearchTerm(e.target.value)}
+                    placeholder="Cari user, link, email..."
+                    className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {logSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setLogSearchTerm('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Tabel Log Aktivitas */}
+              <div className="overflow-x-auto border border-slate-200 rounded-xl max-h-[380px] overflow-y-auto">
+                <table className="w-full text-left text-xs divide-y divide-slate-200">
+                  <thead className="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider text-[11px] sticky top-0 z-10 shadow-2xs">
+                    <tr>
+                      <th className="py-2.5 px-3 w-40">Waktu Kejadian</th>
+                      <th className="py-2.5 px-3">Pengguna &amp; Akun</th>
+                      <th className="py-2.5 px-3 text-center w-28">Jenis Aktivitas</th>
+                      <th className="py-2.5 px-3">Target Tautan / Fitur</th>
+                      <th className="py-2.5 px-3">Tautan URL</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {filteredActivityLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-slate-400 text-xs italic">
+                          {logSearchTerm || logFilterAction !== 'ALL'
+                            ? 'Tidak ada catatan log aktivitas yang cocok dengan kriteria filter.'
+                            : 'Belum ada catatan aktivitas kunjungan atau klik tautan.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredActivityLogs.map((log) => {
+                        const isLogin = log.actionType === 'LOGIN';
+                        return (
+                          <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-2.5 px-3 font-mono text-slate-600 whitespace-nowrap">
+                              {new Date(log.timestamp).toLocaleString('id-ID', {
+                                dateStyle: 'short',
+                                timeStyle: 'medium',
+                              })}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <span className="font-extrabold text-slate-900 block">{log.userName}</span>
+                              <span className="font-mono text-[11px] text-slate-500">{log.userEmail}</span>
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              {isLogin ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                                  🔑 Login
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-300">
+                                  🔗 Klik Tautan
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 font-semibold text-slate-800 max-w-xs truncate" title={log.targetLabel}>
+                              {log.targetLabel}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono text-[11px] text-blue-600 max-w-xs truncate">
+                              {log.targetUrl ? (
+                                <a
+                                  href={log.targetUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 hover:underline text-blue-600"
+                                >
+                                  <span className="truncate max-w-[200px]">{log.targetUrl}</span>
+                                  <ExternalLink className="w-3 h-3 shrink-0" />
+                                </a>
+                              ) : (
+                                <span className="text-slate-400 italic">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

@@ -1,4 +1,15 @@
-import { LinkItem, GasConfig, StatistikData, Role, StaffMember, DEFAULT_STAFF_PIN, BannerConfig, CompanyUser } from '../types';
+import {
+  LinkItem,
+  GasConfig,
+  StatistikData,
+  Role,
+  StaffMember,
+  DEFAULT_STAFF_PIN,
+  BannerConfig,
+  CompanyUser,
+  UserAccessRecord,
+  ActivityLogEntry,
+} from '../types';
 import { INITIAL_LINKS, INITIAL_STATISTIK } from './defaultData';
 
 const CACHE_KEY_LINKS = 'bkr_linkhub_cache_v3';
@@ -13,6 +24,8 @@ const CACHE_KEY_BANNER = 'bkr_banner_config_v1';
 const CACHE_KEY_COMPANY_USER = 'bkr_company_auth_user_v1';
 const CACHE_KEY_DELETED_IDS = 'bkr_deleted_link_ids_v2';
 const CACHE_KEY_DELETED_LABELS = 'bkr_deleted_link_labels_v2';
+const CACHE_KEY_USER_ACCESS = 'bkr_user_access_list_v1';
+const CACHE_KEY_ACTIVITY_LOGS = 'bkr_activity_logs_v1';
 
 // Data Staf Awal Berdasarkan Unit Operasional
 export const INITIAL_STAFF_LIST: StaffMember[] = [
@@ -560,6 +573,142 @@ export function clearAuthenticatedCompanyUser(): void {
     console.error('Gagal menghapus sesi login:', e);
   }
 }
+
+// ------------------------------------------------------------
+// USER ACCESS TRACKING & AUDIT TRAIL (Pencatatan User Tanpa Duplikasi & Counter Akses)
+// ------------------------------------------------------------
+
+export function getStoredUserAccessList(): UserAccessRecord[] {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY_USER_ACCESS);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {
+    console.error('Gagal membaca cache user access:', e);
+  }
+  return [];
+}
+
+export function saveStoredUserAccessList(list: UserAccessRecord[]): void {
+  try {
+    localStorage.setItem(CACHE_KEY_USER_ACCESS, JSON.stringify(list));
+  } catch (e) {
+    console.error('Gagal menyimpan cache user access:', e);
+  }
+}
+
+/**
+ * Mencatat nama dan email user yang login ke sistem.
+ * LOGIKA UPSERT:
+ * Jika email sudah pernah ada -> Update terakhirAkses & totalAkses (+1), TIDAK menduplikasi baris baru.
+ * Jika email baru -> Tambah entri baru dengan totalAkses = 1.
+ */
+export function recordUserLoginAccess(user: { nama: string; email: string; jabatan?: string }): {
+  record: UserAccessRecord;
+  isNew: boolean;
+  list: UserAccessRecord[];
+} {
+  const list = getStoredUserAccessList();
+  const normalizedEmail = (user.email || '').trim().toLowerCase();
+  const now = new Date();
+  const timeStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+  const existingIdx = list.findIndex(
+    (u) => (u.email || '').trim().toLowerCase() === normalizedEmail
+  );
+
+  let record: UserAccessRecord;
+  let isNew = false;
+
+  if (existingIdx !== -1) {
+    // Pengguna yang sudah ada: perbarui waktu terakhir akses dan naikkan counter login
+    list[existingIdx].totalAkses = (Number(list[existingIdx].totalAkses) || 0) + 1;
+    list[existingIdx].terakhirAkses = timeStr;
+    if (user.nama && user.nama.trim()) {
+      list[existingIdx].nama = user.nama.trim();
+    }
+    if (user.jabatan) {
+      list[existingIdx].jabatan = user.jabatan;
+    }
+    record = list[existingIdx];
+  } else {
+    // Pengguna baru: buat baris baru
+    isNew = true;
+    record = {
+      id: `USR-${Date.now().toString().slice(-6)}`,
+      email: (user.email || '').trim(),
+      nama: (user.nama || '').trim(),
+      jabatan: user.jabatan || 'Staf Internal',
+      pertamaKaliLogin: timeStr,
+      terakhirAkses: timeStr,
+      totalAkses: 1,
+      status: 'Aktif',
+    };
+    list.unshift(record);
+  }
+
+  saveStoredUserAccessList(list);
+  return { record, isNew, list };
+}
+
+export function getStoredActivityLogs(): ActivityLogEntry[] {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY_ACTIVITY_LOGS);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {
+    console.error('Gagal membaca cache activity logs:', e);
+  }
+  return [];
+}
+
+export function saveStoredActivityLogs(logs: ActivityLogEntry[]): void {
+  try {
+    localStorage.setItem(CACHE_KEY_ACTIVITY_LOGS, JSON.stringify(logs));
+  } catch (e) {
+    console.error('Gagal menyimpan cache activity logs:', e);
+  }
+}
+
+/**
+ * Mencatat riwayat setiap aktivitas (Login portal, Klik Tautan, Buka Grup)
+ * Dibatasi 200 riwayat terbaru untuk menjaga performa memori.
+ */
+export function recordActivityLog(
+  entry: Omit<ActivityLogEntry, 'id' | 'timestamp' | 'waktuStr'>
+): ActivityLogEntry {
+  const logs = getStoredActivityLogs();
+  const now = new Date();
+  const waktuStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
+  const newLog: ActivityLogEntry = {
+    ...entry,
+    id: `LOG-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    timestamp: Date.now(),
+    waktuStr,
+  };
+
+  logs.unshift(newLog);
+  if (logs.length > 200) {
+    logs.length = 200;
+  }
+
+  saveStoredActivityLogs(logs);
+  return newLog;
+}
+
+export function clearStoredActivityLogs(): void {
+  try {
+    localStorage.removeItem(CACHE_KEY_ACTIVITY_LOGS);
+  } catch (e) {
+    console.error('Gagal mereset activity logs:', e);
+  }
+}
+
 
 // ------------------------------------------------------------
 // NORMALISASI & MANIPULASI LINK
