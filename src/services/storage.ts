@@ -37,6 +37,16 @@ export const INITIAL_STAFF_LIST: StaffMember[] = [
     aktif: true,
   },
   {
+    id: 'STF-MGR',
+    nama: 'Manajer Operasional',
+    jabatan: 'Manajer operasional',
+    email: 'manajer.ops@batukarang.co.id',
+    pin: DEFAULT_STAFF_PIN,
+    unit: 'Manajemen Operasional',
+    allowedLinkIds: ['*'],
+    aktif: true,
+  },
+  {
     id: 'STF-01',
     nama: 'Budi Santoso',
     jabatan: 'Supervisor QC & Laboratorium',
@@ -98,6 +108,14 @@ export function getStoredStaffList(): StaffMember[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
+        let updated = false;
+        if (!parsed.some((s) => s.jabatan === 'Manajer operasional')) {
+          parsed.splice(2, 0, INITIAL_STAFF_LIST[2]);
+          updated = true;
+        }
+        if (updated) {
+          localStorage.setItem(CACHE_KEY_STAFF_LIST, JSON.stringify(parsed));
+        }
         return parsed;
       }
     }

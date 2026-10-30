@@ -65,6 +65,7 @@ import {
   changeStaffPin,
   canStaffEditLink,
   updateLinkByStaff,
+  getAuthenticatedCompanyUser,
 } from '../services/storage';
 import { pushGasLink, pushGasDeleteLink, pushGasAllLinks, fetchGasLinks } from '../services/gasApi';
 import { hasFullAccessRole } from '../services/rbac';
@@ -100,6 +101,17 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
   showToast,
   initialTab = 'links',
 }) => {
+  // Cek apakah akun asli yang login di perangkat adalah Super Account (Developer / Site Engineer / Manajer operasional)
+  const authenticatedUser = useMemo(() => getAuthenticatedCompanyUser(), []);
+  const isSuperAccount = useMemo(() => {
+    if (!authenticatedUser) return false;
+    return (
+      hasFullAccessRole(authenticatedUser.role) ||
+      hasFullAccessRole(authenticatedUser.jabatan) ||
+      authenticatedUser.email.toLowerCase() === 'divisi1.bkr@gmail.com'
+    );
+  }, [authenticatedUser]);
+
   // Akses Penuh (Full Access) HANYA untuk Developer, Site Engineer, dan Manajer operasional
   const isFullAccess =
     hasFullAccessRole(currentRole) &&
@@ -812,7 +824,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
           {/* User Role Switcher & Action Controls */}
           <div className="flex items-center gap-2.5 flex-wrap justify-between md:justify-end">
             {/* Role Badge & Switcher */}
-            {isFullAccess ? (
+            {isSuperAccount || isFullAccess ? (
               <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm">
                 <span className="text-xs sm:text-sm text-slate-400 font-medium">Peran:</span>
                 <select
@@ -833,6 +845,11 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                   <option value="Foreman Lini">🏭 Foreman Lini (Staf)</option>
                   <option value="Operator">⚙️ Operator</option>
                 </select>
+                {isSuperAccount && !hasFullAccessRole(currentRole) && (
+                  <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full" title="Anda sedang menguji tampilan peran terbatas">
+                    Mode Uji
+                  </span>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm">
@@ -857,11 +874,12 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                     showToast('Sesi staf diakhiri.');
                   }}
                   className="text-xs text-emerald-400 hover:text-white underline ml-1 cursor-pointer font-bold"
+                  title="Keluar dari sesi staf ini dan kembali ke akun utama"
                 >
                   Keluar
                 </button>
               </div>
-            ) : isFullAccess ? (
+            ) : (isSuperAccount || isFullAccess) ? (
               <select
                 onChange={(e) => {
                   const s = staffList.find((item) => item.id === e.target.value);
@@ -875,7 +893,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                 className="bg-slate-900 text-slate-300 hover:text-white font-bold text-xs sm:text-sm rounded-xl px-3 py-2 border border-slate-800 focus:outline-none cursor-pointer"
               >
                 <option value="" disabled>
-                  🔑 Masuk Sbg Staf PIC...
+                  🔑 Uji Sbg Staf PIC...
                 </option>
                 {staffList
                   .filter((s) => s.aktif)
@@ -918,7 +936,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
             </button>
 
             {/* Tab 2: Hak Akses Staf & PIN (Khusus Full Access: Developer, Site Engineer, Manajer Operasional) */}
-            {isFullAccess && (
+            {(isSuperAccount || isFullAccess) && (
               <button
                 type="button"
                 onClick={() => setActiveTab('staff')}
@@ -950,7 +968,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
             </button>
 
             {/* Tab 4: Integrasi Google Sheets (Khusus Full Access) */}
-            {isFullAccess && (
+            {(isSuperAccount || isFullAccess) && (
               <button
                 type="button"
                 onClick={() => setActiveTab('gas')}
