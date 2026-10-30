@@ -65,7 +65,7 @@ export const LinkCard: React.FC<LinkCardProps> = ({
           {/* Bagian Tengah: Judul Huruf Kapital + Subtitle Keterangan */}
           <div className="flex flex-col min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-black text-sm sm:text-base md:text-[17px] text-slate-900 group-hover:text-[#0066ff] transition-colors uppercase tracking-tight truncate">
+              <h3 className="font-black text-sm sm:text-base md:text-[17px] text-slate-900 group-hover:text-[#0066ff] transition-colors uppercase tracking-tight line-clamp-2 sm:line-clamp-1 break-words">
                 {link.label}
               </h3>
 

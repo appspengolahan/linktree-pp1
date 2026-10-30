@@ -67,7 +67,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({
         {/* Bagian Tengah: Label Huruf Kapital + Subtitle Keterangan */}
         <div className="flex flex-col min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-black text-sm sm:text-base md:text-[17px] text-slate-900 group-hover:text-[#0066ff] transition-colors uppercase tracking-tight truncate">
+            <h3 className="font-black text-sm sm:text-base md:text-[17px] text-slate-900 group-hover:text-[#0066ff] transition-colors uppercase tracking-tight line-clamp-2 sm:line-clamp-1 break-words">
               {group.label}
             </h3>
 
@@ -155,7 +155,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({
 
                       <div className="flex flex-col min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <h4 className="font-extrabold text-sm sm:text-base text-slate-900 group-hover/sub:text-[#0066ff] uppercase tracking-tight truncate">
+                          <h4 className="font-extrabold text-sm sm:text-base text-slate-900 group-hover/sub:text-[#0066ff] uppercase tracking-tight line-clamp-2 sm:line-clamp-1 break-words">
                             {child.label}
                           </h4>
                           {canEditChild && (

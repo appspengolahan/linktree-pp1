@@ -1074,12 +1074,12 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
         {/* 2. SUB-NAVIGATION TABS (Fitur Disembunyikan Jika Tidak Diberi Akses pada Kategori 2) */}
         <div className="bg-slate-900 border-t border-slate-800 px-3 sm:px-6">
-          <div className="max-w-7xl mx-auto flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-none py-1.5">
+          <div className="max-w-7xl mx-auto flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-none py-2 touch-pan-x flex-nowrap">
             {/* Tab 1: Manajemen Semua Link */}
             <button
               type="button"
               onClick={() => setActiveTab('links')}
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                 activeTab === 'links'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800'
@@ -1094,7 +1094,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('staff')}
-                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                   activeTab === 'staff'
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800'
@@ -1109,7 +1109,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('mystaff')}
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                 activeTab === 'mystaff'
                   ? 'bg-emerald-600 text-white shadow-xs'
                   : 'text-emerald-400 hover:text-white hover:bg-slate-800'
@@ -1126,7 +1126,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('gas')}
-                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                   activeTab === 'gas'
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800'
@@ -1142,7 +1142,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('stats')}
-                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                   activeTab === 'stats'
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800'
@@ -2544,8 +2544,8 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               </div>
 
               {/* Tabel Pengguna */}
-              <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                <table className="w-full text-left text-xs sm:text-sm divide-y divide-slate-200">
+              <div className="overflow-x-auto border border-slate-200 rounded-xl touch-pan-x">
+                <table className="w-full text-left text-xs sm:text-sm divide-y divide-slate-200 min-w-[680px]">
                   <thead className="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider text-[11px]">
                     <tr>
                       <th className="py-3 px-3.5 text-center w-12">No</th>
@@ -2724,8 +2724,8 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               </div>
 
               {/* Tabel Log Aktivitas */}
-              <div className="overflow-x-auto border border-slate-200 rounded-xl max-h-[380px] overflow-y-auto">
-                <table className="w-full text-left text-xs divide-y divide-slate-200">
+              <div className="overflow-x-auto border border-slate-200 rounded-xl max-h-[380px] overflow-y-auto touch-pan-x">
+                <table className="w-full text-left text-xs divide-y divide-slate-200 min-w-[620px]">
                   <thead className="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider text-[11px] sticky top-0 z-10 shadow-2xs">
                     <tr>
                       <th className="py-2.5 px-3 w-40">Waktu Kejadian</th>

@@ -504,7 +504,7 @@ export default function App() {
               onClick={handleCompanyLogout}
               className="text-slate-400 hover:text-rose-400 text-[10px] font-semibold transition px-2 py-0.5 rounded hover:bg-slate-900 border border-slate-800 cursor-pointer"
             >
-              Keluar / Ganti Akun
+              <span className="hidden sm:inline">Ganti Akun / </span>Keluar
             </button>
           </div>
         </div>
@@ -576,7 +576,7 @@ export default function App() {
             className="text-slate-400 hover:text-rose-400 text-[10px] sm:text-xs font-semibold transition px-2 py-0.5 rounded-lg hover:bg-slate-900 border border-slate-800 shrink-0 cursor-pointer"
             title="Keluar dari sesi portal di perangkat ini"
           >
-            Ganti Akun / Keluar
+            <span className="hidden sm:inline">Ganti Akun / </span>Keluar
           </button>
         </div>
       </div>
@@ -602,10 +602,10 @@ export default function App() {
 
             {/* Teks Sejajar: Sub-judul Cyan & Judul Utama */}
             <div className="flex flex-col min-w-0">
-              <p className="text-[#38bdf8] font-bold tracking-wider text-xs sm:text-sm uppercase truncate">
+              <p className="text-[#38bdf8] font-bold tracking-wider text-xs sm:text-sm uppercase">
                 {bannerConfig.badge}
               </p>
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-tight truncate">
+              <h1 className="text-xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-tight break-words">
                 {bannerConfig.title}
               </h1>
             </div>
