@@ -18,6 +18,8 @@ import {
   FolderPlus,
   ListPlus,
   LayoutDashboard,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 
 import { LinkItem, Role, GasConfig, StatistikData, StaffMember, BannerConfig, DEFAULT_STAFF_PIN, CompanyUser } from './types';
@@ -80,6 +82,29 @@ export default function App() {
     setCompanyUser(null);
     setActiveStaff(null);
     showToast('Sesi telah ditutup. Silakan masuk kembali.');
+  };
+
+  // Fullscreen State & Handler (Menyembunyikan / Menampilkan Title Bar PWA Window - F11)
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(() => {
+    return typeof document !== 'undefined' ? !!document.fullscreenElement : false;
+  });
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
+
+  const handleToggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+      showToast('Mode Layar Penuh diaktifkan (Tekan F11 atau Esc untuk keluar)');
+    } else {
+      document.exitFullscreen().catch(() => {});
+      showToast('Keluar dari mode layar penuh');
+    }
   };
 
   // RBAC State
@@ -446,13 +471,24 @@ export default function App() {
             <span className="text-white font-bold truncate text-[11px] sm:text-xs">{companyUser.nama}</span>
             <span className="text-slate-400 text-[10px] truncate hidden sm:inline">• {companyUser.jabatan}</span>
           </div>
-          <button
-            type="button"
-            onClick={handleCompanyLogout}
-            className="text-slate-400 hover:text-rose-400 text-[10px] font-semibold transition px-2 py-0.5 rounded hover:bg-slate-900 border border-slate-800 cursor-pointer"
-          >
-            Keluar / Ganti Akun
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={handleToggleFullscreen}
+              className="text-slate-300 hover:text-white text-[10px] font-semibold transition px-2 py-0.5 rounded hover:bg-slate-900 border border-slate-800 flex items-center gap-1 cursor-pointer"
+              title="Layar Penuh (Sembunyikan Title Bar Browser/PWA - F11)"
+            >
+              {isFullscreen ? <Minimize2 className="w-3 h-3 text-amber-400" /> : <Maximize2 className="w-3 h-3 text-blue-400" />}
+              <span className="hidden sm:inline">{isFullscreen ? 'Keluar Fullscreen' : 'Layar Penuh (F11)'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleCompanyLogout}
+              className="text-slate-400 hover:text-rose-400 text-[10px] font-semibold transition px-2 py-0.5 rounded hover:bg-slate-900 border border-slate-800 cursor-pointer"
+            >
+              Keluar / Ganti Akun
+            </button>
+          </div>
         </div>
 
         <ManagementDashboard
@@ -494,7 +530,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f1f5f9] text-slate-900 flex flex-col font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
-      {/* 0. Internal Staff Identity Bar (Status Login Aktif & Tombol Keluar) */}
+      {/* 0. Internal Staff Identity Bar (Status Login Aktif, Layar Penuh, & Tombol Keluar) */}
       <div className="bg-slate-950 text-slate-300 text-xs px-3 sm:px-6 py-2 border-b border-slate-800/90 flex items-center justify-between gap-2 shadow-xs">
         <div className="flex items-center gap-2 truncate">
           <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 animate-pulse" />
@@ -506,14 +542,25 @@ export default function App() {
             [{companyUser.email}]
           </span>
         </div>
-        <button
-          type="button"
-          onClick={handleCompanyLogout}
-          className="text-slate-400 hover:text-rose-400 text-[10px] sm:text-xs font-semibold transition px-2 py-0.5 rounded-lg hover:bg-slate-900 border border-slate-800 shrink-0 cursor-pointer"
-          title="Keluar dari sesi portal di perangkat ini"
-        >
-          Ganti Akun / Keluar
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={handleToggleFullscreen}
+            className="text-slate-300 hover:text-white text-[10px] sm:text-xs font-semibold transition px-2 py-0.5 rounded-lg hover:bg-slate-900 border border-slate-800 flex items-center gap-1 cursor-pointer"
+            title="Sembunyikan Title Bar Browser/PWA dengan Mode Layar Penuh (F11)"
+          >
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5 text-amber-400" /> : <Maximize2 className="w-3.5 h-3.5 text-blue-400" />}
+            <span className="hidden sm:inline">{isFullscreen ? 'Keluar Fullscreen' : 'Layar Penuh (F11)'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleCompanyLogout}
+            className="text-slate-400 hover:text-rose-400 text-[10px] sm:text-xs font-semibold transition px-2 py-0.5 rounded-lg hover:bg-slate-900 border border-slate-800 shrink-0 cursor-pointer"
+            title="Keluar dari sesi portal di perangkat ini"
+          >
+            Ganti Akun / Keluar
+          </button>
+        </div>
       </div>
 
       {/* 1. Curved Midnight Navy Hero Section (Identitas Resmi Divisi Produksi I PT Batu Karang) */}
