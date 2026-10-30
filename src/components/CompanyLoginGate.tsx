@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   AlertCircle,
   ArrowRight,
-  Sparkles,
   Building2,
 } from 'lucide-react';
 import { CompanyUser, Role, StaffMember, DEFAULT_STAFF_PIN } from '../types';
@@ -40,14 +39,6 @@ export const CompanyLoginGate: React.FC<CompanyLoginGateProps> = ({
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Quick select preset profile
-  const handleSelectPreset = (st: StaffMember) => {
-    setNama(st.nama);
-    setEmail(st.email);
-    setPin(st.pin || DEFAULT_STAFF_PIN);
-    setErrorMessage('');
-  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,34 +183,6 @@ export const CompanyLoginGate: React.FC<CompanyLoginGateProps> = ({
             <p className="text-xs text-slate-400 mt-2 max-w-md mx-auto leading-relaxed">
               Direktori tautan khusus karyawan & staf operasional. Masuk sekali menggunakan identitas Anda untuk akses berkelanjutan di perangkat ini.
             </p>
-          </div>
-
-          {/* Quick Select Preset Pills */}
-          <div className="px-6 sm:px-8 pt-4 pb-2 bg-slate-950/40 border-b border-slate-800/50">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-amber-400" />
-                Pilih Cepat Profil Staf Terdaftar:
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pb-1 scrollbar-thin">
-              {staffList.slice(0, 7).map((st) => (
-                <button
-                  key={st.id}
-                  type="button"
-                  onClick={() => handleSelectPreset(st)}
-                  className={`text-[11px] px-2.5 py-1 rounded-lg border transition flex items-center gap-1.5 text-left ${
-                    email.toLowerCase() === st.email.toLowerCase()
-                      ? 'bg-blue-600 text-white border-blue-500 font-bold shadow-xs'
-                      : 'bg-slate-800/80 text-slate-300 border-slate-700/70 hover:bg-slate-750 hover:text-white hover:border-slate-600'
-                  }`}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  <span className="truncate max-w-[140px]">{st.nama}</span>
-                  <span className="text-[9px] opacity-60">({st.jabatan.split(' ')[0]})</span>
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Form */}
