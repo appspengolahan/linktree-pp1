@@ -716,26 +716,26 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
             <button
               type="button"
               onClick={onBackToPortal}
-              className="p-1.5 sm:p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition-colors cursor-pointer"
+              className="p-2 sm:p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition-colors cursor-pointer"
               title="Kembali ke Tampilan Utama Link Tree"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
 
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-full bg-white p-1 flex items-center justify-center shrink-0 border border-white/20">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white p-1 flex items-center justify-center shrink-0 border border-white/20">
                 <Logo153 size="sm" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-sm sm:text-base font-black tracking-tight leading-none text-white">
+                  <h1 className="text-base sm:text-lg md:text-xl font-black tracking-tight leading-none text-white">
                     Dashboard Manajemen &amp; PIC
                   </h1>
-                  <span className="hidden sm:inline-block text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                  <span className="hidden sm:inline-block text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
                     Divisi Produksi I
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                <p className="text-xs sm:text-sm text-slate-400 truncate mt-1">
                   PT Batu Karang — Sistem Kontrol Tautan, Hak Akses Staf, &amp; Sinkronisasi
                 </p>
               </div>
@@ -743,10 +743,10 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
           </div>
 
           {/* User Role Switcher & Action Controls */}
-          <div className="flex items-center gap-2 flex-wrap justify-between md:justify-end">
+          <div className="flex items-center gap-2.5 flex-wrap justify-between md:justify-end">
             {/* Role Badge & Switcher */}
-            <div className="flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs">
-              <span className="text-[11px] text-slate-400 font-medium">Peran:</span>
+            <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm">
+              <span className="text-xs sm:text-sm text-slate-400 font-medium">Peran:</span>
               <select
                 value={currentRole}
                 onChange={(e) => {
@@ -755,7 +755,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                   saveUserRole(newRole);
                   showToast(`Peran dialihkan ke: ${newRole}`);
                 }}
-                className="bg-slate-800 text-white font-bold text-xs rounded-lg px-2 py-1 border border-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                className="bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-lg px-2.5 py-1 border border-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
               >
                 <option value="Developer">💻 Developer (Full)</option>
                 <option value="Site Engineer">👷 Site Engineer (Full)</option>
@@ -770,9 +770,9 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
             {/* Staf Session Indicator / Switcher */}
             {activeStaff ? (
-              <div className="flex items-center gap-1.5 bg-emerald-950/80 border border-emerald-600/40 text-emerald-300 rounded-xl px-2.5 py-1 text-xs">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span className="truncate max-w-[120px] font-semibold">{activeStaff.nama}</span>
+              <div className="flex items-center gap-2 bg-emerald-950/80 border border-emerald-600/40 text-emerald-300 rounded-xl px-3 py-1.5 text-xs sm:text-sm font-semibold">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="truncate max-w-[140px] font-bold">{activeStaff.nama}</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -780,7 +780,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                     onStaffSessionChange(null);
                     showToast('Sesi staf diakhiri.');
                   }}
-                  className="text-[10px] text-emerald-400 hover:text-white underline ml-1 cursor-pointer"
+                  className="text-xs text-emerald-400 hover:text-white underline ml-1 cursor-pointer font-bold"
                 >
                   Keluar
                 </button>
@@ -796,7 +796,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                   }
                 }}
                 defaultValue=""
-                className="bg-slate-900 text-slate-300 hover:text-white font-medium text-xs rounded-xl px-2.5 py-1.5 border border-slate-800 focus:outline-none cursor-pointer"
+                className="bg-slate-900 text-slate-300 hover:text-white font-bold text-xs sm:text-sm rounded-xl px-3 py-2 border border-slate-800 focus:outline-none cursor-pointer"
               >
                 <option value="" disabled>
                   🔑 Masuk Sbg Staf PIC...
@@ -815,10 +815,10 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
             <button
               type="button"
               onClick={onSwitchToPublic}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer shrink-0"
+              className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors cursor-pointer shrink-0"
               title="Lihat tampilan publik bersih seperti yang dilihat pengguna"
             >
-              <Eye className="w-3.5 h-3.5" />
+              <Eye className="w-4 h-4" />
               <span>Lihat Publik</span>
             </button>
           </div>
@@ -831,13 +831,13 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('links')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
                 activeTab === 'links'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
             >
-              <ListPlus className="w-4 h-4" />
+              <ListPlus className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Kelola Semua Link ({flatLinks.length})</span>
             </button>
 
@@ -845,13 +845,13 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('staff')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
                 activeTab === 'staff'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
             >
-              <Users className="w-4 h-4" />
+              <Users className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Hak Akses Staf &amp; PIN ({staffList.length})</span>
             </button>
 
@@ -859,13 +859,13 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('mystaff')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
                 activeTab === 'mystaff'
                   ? 'bg-emerald-600 text-white shadow-xs'
                   : 'text-emerald-400 hover:text-white hover:bg-slate-800'
               }`}
             >
-              <ShieldCheck className="w-4 h-4" />
+              <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>
                 Tautan Wewenang Saya {activeStaff ? `(${staffAssignedLinks.length})` : ''}
               </span>
@@ -875,13 +875,13 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('gas')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
                 activeTab === 'gas'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
             >
-              <CloudUpload className="w-4 h-4" />
+              <CloudUpload className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Sinkronisasi Google Sheets</span>
             </button>
 
@@ -889,13 +889,13 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('stats')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
                 activeTab === 'stats'
                   ? 'bg-blue-600 text-white shadow-xs'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
             >
-              <BarChart3 className="w-4 h-4" />
+              <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Statistik &amp; Analitik</span>
             </button>
           </div>
@@ -908,64 +908,64 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
         {activeTab === 'links' && (
           <div className="space-y-4">
             {/* Metric Summary Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
-              <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-slate-200 shadow-2xs">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+              <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-2xs">
+                <span className="text-xs sm:text-sm font-bold text-slate-500 uppercase tracking-wider block">
                   Total Tautan
                 </span>
-                <div className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5">
+                <div className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">
                   {flatLinks.length}
                 </div>
-                <span className="text-[10px] text-slate-400">Termasuk tautan dalam grup</span>
+                <span className="text-xs text-slate-400 mt-0.5 block">Termasuk tautan dalam grup</span>
               </div>
 
-              <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-emerald-200 bg-emerald-50/20 shadow-2xs">
-                <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider block">
+              <div className="bg-white rounded-2xl p-4 sm:p-5 border border-emerald-200 bg-emerald-50/20 shadow-2xs">
+                <span className="text-xs sm:text-sm font-bold text-emerald-700 uppercase tracking-wider block">
                   Ditampilkan (Aktif)
                 </span>
-                <div className="text-xl sm:text-2xl font-black text-emerald-700 mt-0.5">
+                <div className="text-2xl sm:text-3xl font-black text-emerald-700 mt-1">
                   {flatLinks.filter((l) => String(l.aktif).toUpperCase() === 'TRUE').length}
                 </div>
-                <span className="text-[10px] text-emerald-600">Tampil di portal publik</span>
+                <span className="text-xs text-emerald-600 mt-0.5 block">Tampil di portal publik</span>
               </div>
 
-              <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-amber-200 bg-amber-50/20 shadow-2xs">
-                <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider block">
+              <div className="bg-white rounded-2xl p-4 sm:p-5 border border-amber-200 bg-amber-50/20 shadow-2xs">
+                <span className="text-xs sm:text-sm font-bold text-amber-700 uppercase tracking-wider block">
                   Disembunyikan
                 </span>
-                <div className="text-xl sm:text-2xl font-black text-amber-700 mt-0.5">
+                <div className="text-2xl sm:text-3xl font-black text-amber-700 mt-1">
                   {flatLinks.filter((l) => String(l.aktif).toUpperCase() !== 'TRUE').length}
                 </div>
-                <span className="text-[10px] text-amber-600">Disembunyikan dari publik</span>
+                <span className="text-xs text-amber-600 mt-0.5 block">Disembunyikan dari publik</span>
               </div>
 
-              <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-blue-200 bg-blue-50/20 shadow-2xs">
-                <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider block">
+              <div className="bg-white rounded-2xl p-4 sm:p-5 border border-blue-200 bg-blue-50/20 shadow-2xs">
+                <span className="text-xs sm:text-sm font-bold text-blue-700 uppercase tracking-wider block">
                   Total Grup
                 </span>
-                <div className="text-xl sm:text-2xl font-black text-blue-700 mt-0.5">
+                <div className="text-2xl sm:text-3xl font-black text-blue-700 mt-1">
                   {groupItems.length}
                 </div>
-                <span className="text-[10px] text-blue-600">Penampung sub-link</span>
+                <span className="text-xs text-blue-600 mt-0.5 block">Penampung sub-link</span>
               </div>
             </div>
 
             {/* Action Bar: Search, Filters, +Tambah Link, +Tambah Grup */}
-            <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3.5">
               {/* Search input */}
               <div className="relative flex-1 max-w-md">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Cari nama tautan, URL, atau kategori..."
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-8 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-9 py-2.5 text-sm sm:text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm font-bold"
                   >
                     ✕
                   </button>
@@ -973,13 +973,13 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               </div>
 
               {/* Filters & Action Buttons */}
-              <div className="flex items-center gap-2 flex-wrap justify-between md:justify-end">
+              <div className="flex items-center gap-2.5 flex-wrap justify-between md:justify-end">
                 {/* Visibility Filter Tabs */}
-                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs sm:text-sm font-bold">
                   <button
                     type="button"
                     onClick={() => setVisibilityFilter('all')}
-                    className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
                       visibilityFilter === 'all'
                         ? 'bg-white text-slate-900 shadow-xs'
                         : 'text-slate-600 hover:text-slate-900'
@@ -990,25 +990,25 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                   <button
                     type="button"
                     onClick={() => setVisibilityFilter('visible')}
-                    className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1 ${
+                    className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
                       visibilityFilter === 'visible'
                         ? 'bg-white text-emerald-700 shadow-xs'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    <Eye className="w-3 h-3 text-emerald-600" />
+                    <Eye className="w-4 h-4 text-emerald-600" />
                     <span>Aktif</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setVisibilityFilter('hidden')}
-                    className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1 ${
+                    className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 ${
                       visibilityFilter === 'hidden'
                         ? 'bg-white text-amber-700 shadow-xs'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    <EyeOff className="w-3 h-3 text-amber-600" />
+                    <EyeOff className="w-4 h-4 text-amber-600" />
                     <span>Tersembunyi</span>
                   </button>
                 </div>
@@ -1017,20 +1017,20 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                 <button
                   type="button"
                   onClick={() => handleOpenAddLink('', 'Grup')}
-                  className="px-3 py-2 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-bold transition-colors inline-flex items-center gap-2 cursor-pointer shadow-2xs"
                   title="Tambah grup penampung baru"
                 >
-                  <FolderPlus className="w-4 h-4 text-blue-600" />
+                  <FolderPlus className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                   <span>+ Tambah Grup</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleOpenAddLink('', 'Link')}
-                  className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  className="px-4 sm:px-4.5 py-2 sm:py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold transition-colors inline-flex items-center gap-2 cursor-pointer shadow-xs"
                   title="Tambah link dokumen/formulir baru"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                   <span>+ Tambah Link</span>
                 </button>
               </div>
@@ -1070,41 +1070,41 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                       }`}
                     >
                       {/* Top-Level Item Row */}
-                      <div className="p-3 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                        <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+                      <div className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-3.5">
+                        <div className="flex items-start sm:items-center gap-3 min-w-0">
                           {/* Urutan Move Buttons */}
-                          <div className="flex flex-col gap-0.5 shrink-0 pt-0.5 sm:pt-0">
+                          <div className="flex flex-col gap-1 shrink-0 pt-0.5 sm:pt-0">
                             <button
                               type="button"
                               onClick={() => handleMoveUrutan(item.id, 'up', '')}
                               disabled={isFirst}
-                              className="p-1 rounded text-slate-400 hover:text-slate-800 disabled:opacity-20 cursor-pointer"
+                              className="p-1 rounded-md text-slate-400 hover:text-slate-800 disabled:opacity-20 cursor-pointer"
                               title="Pindahkan naik"
                             >
-                              <ArrowUp className="w-3.5 h-3.5" />
+                              <ArrowUp className="w-4 h-4" />
                             </button>
                             <button
                               type="button"
                               onClick={() => handleMoveUrutan(item.id, 'down', '')}
                               disabled={isLast}
-                              className="p-1 rounded text-slate-400 hover:text-slate-800 disabled:opacity-20 cursor-pointer"
+                              className="p-1 rounded-md text-slate-400 hover:text-slate-800 disabled:opacity-20 cursor-pointer"
                               title="Pindahkan turun"
                             >
-                              <ArrowDown className="w-3.5 h-3.5" />
+                              <ArrowDown className="w-4 h-4" />
                             </button>
                           </div>
 
                           {/* Icon */}
-                          <span className="text-2xl shrink-0">{item.icon || (isGroup ? '🗂️' : '🔗')}</span>
+                          <span className="text-3xl sm:text-4xl shrink-0">{item.icon || (isGroup ? '🗂️' : '🔗')}</span>
 
                           {/* Title & Metadata */}
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="font-extrabold text-xs sm:text-sm text-slate-900 truncate">
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                              <h3 className="font-black text-sm sm:text-base md:text-lg text-slate-900 truncate">
                                 {item.label}
                               </h3>
                               {isGroup && (
-                                <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                <span className="text-xs font-bold bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full">
                                   🗂️ Grup ({children.length} anak)
                                 </span>
                               )}
@@ -1112,7 +1112,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleToggleVisibility(item)}
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border inline-flex items-center gap-1 cursor-pointer transition-colors ${
+                                className={`text-xs font-bold px-3 py-1 rounded-full border inline-flex items-center gap-1.5 cursor-pointer transition-colors ${
                                   isAktif
                                     ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
                                     : 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200'
@@ -1121,11 +1121,11 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                               >
                                 {isAktif ? (
                                   <>
-                                    <Eye className="w-3 h-3 text-emerald-600" /> Ditampilkan
+                                    <Eye className="w-3.5 h-3.5 text-emerald-600" /> Ditampilkan
                                   </>
                                 ) : (
                                   <>
-                                    <EyeOff className="w-3 h-3 text-amber-600" /> Disembunyikan
+                                    <EyeOff className="w-3.5 h-3.5 text-amber-600" /> Disembunyikan
                                   </>
                                 )}
                               </button>
@@ -1133,34 +1133,34 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
                             {/* Deskripsi & URL preview */}
                             {item.deskripsi && (
-                              <p className="text-[11px] text-slate-500 truncate mt-0.5 max-w-xl">
+                              <p className="text-xs sm:text-sm text-slate-600 truncate mt-1 max-w-2xl font-medium">
                                 {item.deskripsi}
                               </p>
                             )}
 
                             {item.url && (
-                              <div className="flex items-center gap-1 text-[11px] text-blue-600 hover:underline mt-0.5 truncate max-w-xl">
+                              <div className="flex items-center gap-1.5 text-xs sm:text-sm text-blue-600 hover:underline mt-1 truncate max-w-2xl font-mono">
                                 <span className="truncate">{item.url}</span>
-                                <ExternalLink className="w-3 h-3 shrink-0" />
+                                <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                               </div>
                             )}
 
                             {/* Staff PIC list badge */}
-                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                              <span className="text-[10px] font-semibold text-slate-400">
+                            <div className="flex items-center gap-2 mt-2 flex-wrap">
+                              <span className="text-xs font-bold text-slate-500">
                                 Staf PIC:
                               </span>
                               {assignedStaff.length > 0 ? (
                                 assignedStaff.map((s) => (
                                   <span
                                     key={s.id}
-                                    className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-medium border border-slate-200"
+                                    className="text-xs bg-slate-100 text-slate-800 px-2.5 py-0.5 rounded-md font-semibold border border-slate-200"
                                   >
                                     👤 {s.nama}
                                   </span>
                                 ))
                               ) : (
-                                <span className="text-[10px] text-slate-400 italic">
+                                <span className="text-xs text-slate-400 italic">
                                   Belum ada staf khusus (akses oleh Admin &amp; Engineer)
                                 </span>
                               )}
@@ -1169,15 +1169,15 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                         </div>
 
                         {/* Control Actions: Assign Staff, Edit, Delete */}
-                        <div className="flex items-center gap-1.5 self-end md:self-center shrink-0 flex-wrap">
+                        <div className="flex items-center gap-2 self-end md:self-center shrink-0 flex-wrap">
                           {isGroup && (
                             <button
                               type="button"
                               onClick={() => handleOpenAddLink(item.id, 'Link')}
-                              className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                              className="px-3 sm:px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                               title="Tambah anak link ke dalam grup ini"
                             >
-                              <Plus className="w-3 h-3" />
+                              <Plus className="w-3.5 h-3.5" />
                               <span>+ Sub-link</span>
                             </button>
                           )}
@@ -1185,41 +1185,41 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                           <button
                             type="button"
                             onClick={() => handleOpenAssignStaff(item)}
-                            className="px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-colors border border-indigo-200"
+                            className="px-3 sm:px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs sm:text-sm font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors border border-indigo-200 shadow-2xs"
                             title="Atur siapa staf yang boleh mengedit link ini"
                           >
-                            <Users className="w-3.5 h-3.5" />
+                            <Users className="w-4 h-4" />
                             <span>Atur Staf PIC</span>
                           </button>
 
                           <button
                             type="button"
                             onClick={() => handleOpenEditLink(item)}
-                            className="p-1.5 rounded-xl bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-600 transition-colors cursor-pointer"
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-700 transition-colors cursor-pointer"
                             title="Edit informasi tautan"
                           >
-                            <Edit2 className="w-4 h-4" />
+                            <Edit2 className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
 
                           <button
                             type="button"
                             onClick={() => handleDeleteLink(item)}
-                            className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 transition-colors cursor-pointer"
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-700 transition-colors cursor-pointer"
                             title="Hapus tautan/grup"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                           </button>
                         </div>
                       </div>
 
                       {/* Sub-Links inside Group */}
                       {isGroup && children.length > 0 && (
-                        <div className="bg-slate-50/70 border-t border-slate-200 px-3 sm:px-6 py-2.5 space-y-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                        <div className="bg-slate-50/80 border-t border-slate-200 px-4 sm:px-7 py-3 space-y-2.5">
+                          <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-600 block">
                             Daftar Sub-link di dalam {item.label}:
                           </span>
 
-                          <div className="divide-y divide-slate-200/80">
+                          <div className="divide-y divide-slate-200">
                             {children.map((child, cIdx) => {
                               const isChildAktif = String(child.aktif).toUpperCase() === 'TRUE';
                               const isFirstChild = cIdx === 0;
@@ -1234,9 +1234,9 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                               return (
                                 <div
                                   key={child.id}
-                                  className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                                  className="py-2.5 sm:py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
                                 >
-                                  <div className="flex items-center gap-2 min-w-0">
+                                  <div className="flex items-center gap-2.5 min-w-0">
                                     <div className="flex flex-col gap-0.5 shrink-0">
                                       <button
                                         type="button"
@@ -1244,7 +1244,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                                         disabled={isFirstChild}
                                         className="text-slate-400 hover:text-slate-700 disabled:opacity-20 cursor-pointer"
                                       >
-                                        <ArrowUp className="w-3 h-3" />
+                                        <ArrowUp className="w-3.5 h-3.5" />
                                       </button>
                                       <button
                                         type="button"
@@ -1252,21 +1252,21 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                                         disabled={isLastChild}
                                         className="text-slate-400 hover:text-slate-700 disabled:opacity-20 cursor-pointer"
                                       >
-                                        <ArrowDown className="w-3 h-3" />
+                                        <ArrowDown className="w-3.5 h-3.5" />
                                       </button>
                                     </div>
 
-                                    <span className="text-lg shrink-0">{child.icon || '🔗'}</span>
+                                    <span className="text-2xl shrink-0">{child.icon || '🔗'}</span>
 
                                     <div className="min-w-0">
-                                      <div className="flex items-center gap-1.5 flex-wrap">
-                                        <span className="font-bold text-xs text-slate-800 truncate">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-extrabold text-sm sm:text-base text-slate-900 truncate">
                                           {child.label}
                                         </span>
                                         <button
                                           type="button"
                                           onClick={() => handleToggleVisibility(child)}
-                                          className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full border inline-flex items-center gap-0.5 cursor-pointer ${
+                                          className={`text-xs font-bold px-2.5 py-0.5 rounded-full border inline-flex items-center gap-1 cursor-pointer ${
                                             isChildAktif
                                               ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                                               : 'bg-amber-100 text-amber-800 border-amber-300'
@@ -1277,19 +1277,19 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                                       </div>
 
                                       {child.url && (
-                                        <p className="text-[11px] text-blue-600 truncate mt-0.5 max-w-md">
+                                        <p className="text-xs sm:text-sm text-blue-600 truncate mt-1 max-w-lg font-mono">
                                           {child.url}
                                         </p>
                                       )}
 
                                       {/* Assigned PIC staff badge for child */}
                                       {childStaff.length > 0 && (
-                                        <div className="flex items-center gap-1 mt-1">
-                                          <span className="text-[9px] text-slate-400">PIC:</span>
+                                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                          <span className="text-xs text-slate-500 font-bold">PIC:</span>
                                           {childStaff.map((s) => (
                                             <span
                                               key={s.id}
-                                              className="text-[9px] bg-white text-slate-700 px-1.5 py-0.2 rounded border border-slate-200"
+                                              className="text-xs bg-white text-slate-800 px-2 py-0.5 rounded border border-slate-300 font-medium"
                                             >
                                               {s.nama}
                                             </span>
@@ -1299,27 +1299,27 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                                     <button
                                       type="button"
                                       onClick={() => handleOpenAssignStaff(child)}
-                                      className="px-2 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold border border-indigo-200 cursor-pointer"
+                                      className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold border border-indigo-200 cursor-pointer shadow-2xs"
                                     >
                                       PIC
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => handleOpenEditLink(child)}
-                                      className="p-1 rounded-lg hover:bg-slate-200 text-slate-600 cursor-pointer"
+                                      className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-600 cursor-pointer"
                                     >
-                                      <Edit2 className="w-3.5 h-3.5" />
+                                      <Edit2 className="w-4 h-4" />
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => handleDeleteLink(child)}
-                                      className="p-1 rounded-lg hover:bg-rose-100 text-rose-600 cursor-pointer"
+                                      className="p-1.5 rounded-lg hover:bg-rose-100 text-rose-600 cursor-pointer"
                                     >
-                                      <Trash2 className="w-3.5 h-3.5" />
+                                      <Trash2 className="w-4 h-4" />
                                     </button>
                                   </div>
                                 </div>
@@ -1342,39 +1342,39 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
             {/* Header Box: Actions & Info */}
             <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="font-extrabold text-sm sm:text-base text-slate-900 flex items-center gap-2">
-                  <Users className="w-4 h-4 text-blue-600" />
+                <h3 className="font-extrabold text-base sm:text-lg text-slate-900 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-blue-600" />
                   <span>Daftar Staf Penanggung Jawab &amp; PIN Akses</span>
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs sm:text-sm text-slate-500 mt-1">
                   Atur tautan mana saja yang boleh diedit oleh masing-masing staf shift, supervisor, dan kendali mutu.
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2.5 flex-wrap">
                 <button
                   type="button"
                   onClick={handleResetAllPins}
-                  className="px-3 py-1.5 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+                  className="px-3.5 py-2 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs sm:text-sm font-bold transition-colors cursor-pointer shadow-2xs"
                   title="Reset seluruh PIN staf kembali ke 1234"
                 >
-                  <RotateCcw className="w-3.5 h-3.5 inline mr-1" />
+                  <RotateCcw className="w-4 h-4 inline mr-1.5" />
                   <span>Reset Semua PIN (1234)</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleOpenAddStaff}
-                  className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  className="px-4 py-2 sm:py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold transition-colors inline-flex items-center gap-2 cursor-pointer shadow-xs"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                   <span>+ Tambah Staf Baru</span>
                 </button>
               </div>
             </div>
 
             {/* Grid of Staff Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {staffList.map((staff) => {
                 const assignedLinksCount = staff.allowedLinkIds?.includes('*')
                   ? flatLinks.filter((l) => l.tipe !== 'Grup').length
@@ -1383,24 +1383,24 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                 return (
                   <div
                     key={staff.id}
-                    className="bg-white rounded-2xl border border-slate-200 p-4 shadow-2xs flex flex-col justify-between gap-3 hover:border-slate-300 transition-all"
+                    className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-2xs flex flex-col justify-between gap-3.5 hover:border-slate-300 transition-all"
                   >
                     <div>
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start justify-between gap-2.5">
                         <div className="min-w-0">
-                          <h4 className="font-extrabold text-sm text-slate-900 truncate">
+                          <h4 className="font-extrabold text-base sm:text-lg text-slate-900 truncate">
                             {staff.nama}
                           </h4>
-                          <p className="text-xs text-blue-600 font-semibold truncate mt-0.5">
+                          <p className="text-xs sm:text-sm text-blue-600 font-bold truncate mt-0.5">
                             {staff.jabatan}
                           </p>
-                          <span className="text-[10px] font-mono text-slate-400 block truncate">
+                          <span className="text-xs font-mono text-slate-500 block truncate mt-0.5">
                             {staff.email}
                           </span>
                         </div>
 
                         <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          className={`text-xs font-bold px-2.5 py-1 rounded-full ${
                             staff.aktif
                               ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                               : 'bg-slate-100 text-slate-500'
@@ -1411,20 +1411,20 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                       </div>
 
                       {/* Unit & PIN display */}
-                      <div className="mt-3 bg-slate-50 rounded-xl p-2.5 border border-slate-200 space-y-1 text-xs">
+                      <div className="mt-3.5 bg-slate-50 rounded-xl p-3 border border-slate-200 space-y-1.5 text-xs sm:text-sm">
                         <div className="flex items-center justify-between text-slate-600">
-                          <span className="text-[11px]">Unit Kerja:</span>
-                          <span className="font-semibold text-slate-800">{staff.unit || '-'}</span>
+                          <span className="font-medium">Unit Kerja:</span>
+                          <span className="font-bold text-slate-800">{staff.unit || '-'}</span>
                         </div>
                         <div className="flex items-center justify-between text-slate-600">
-                          <span className="text-[11px]">PIN Akses:</span>
-                          <span className="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-300">
+                          <span className="font-medium">PIN Akses:</span>
+                          <span className="font-mono font-black text-slate-900 bg-white px-2.5 py-0.5 rounded border border-slate-300">
                             {staff.pin || DEFAULT_STAFF_PIN}
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-slate-600">
-                          <span className="text-[11px]">Tautan Wewenang:</span>
-                          <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                          <span className="font-medium">Tautan Wewenang:</span>
+                          <span className="font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
                             {staff.allowedLinkIds?.includes('*')
                               ? 'Semua Tautan (*)'
                               : `${assignedLinksCount} Tautan`}
@@ -1434,25 +1434,25 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-1.5 pt-2 border-t border-slate-100 justify-between">
+                    <div className="flex items-center gap-2 pt-3 border-t border-slate-100 justify-between">
                       <button
                         type="button"
                         onClick={() => {
                           setResetPinTarget(staff);
                           setCustomResetPin('');
                         }}
-                        className="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-200 cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs sm:text-sm font-bold border border-amber-200 cursor-pointer"
                         title="Reset PIN staf"
                       >
-                        <KeyRound className="w-3 h-3 inline mr-1" />
+                        <KeyRound className="w-3.5 h-3.5 inline mr-1" />
                         <span>Reset PIN</span>
                       </button>
 
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => handleOpenEditStaff(staff)}
-                          className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-700 text-[11px] font-bold cursor-pointer"
+                          className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-800 text-xs sm:text-sm font-bold cursor-pointer transition-colors"
                           title="Edit staf & hak akses"
                         >
                           <Edit2 className="w-3.5 h-3.5 inline mr-1" />
@@ -1462,10 +1462,10 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                         <button
                           type="button"
                           onClick={() => handleDeleteStaff(staff)}
-                          className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 cursor-pointer"
+                          className="p-2 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
                           title="Hapus staf"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -1547,25 +1547,25 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                 Belum ada tautan yang secara khusus ditugaskan kepada akun Anda. Hubungi Site Engineer atau Project Manager untuk menambahkan wewenang.
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {staffAssignedLinks.map((link) => {
                   const isAktif = String(link.aktif).toUpperCase() === 'TRUE';
                   return (
                     <div
                       key={link.id}
-                      className={`bg-white rounded-2xl border p-4 shadow-2xs flex flex-col justify-between gap-3 ${
+                      className={`bg-white rounded-2xl border p-4 sm:p-5 shadow-2xs flex flex-col justify-between gap-3.5 ${
                         isAktif ? 'border-slate-200' : 'border-amber-200 bg-amber-50/20'
                       }`}
                     >
                       <div>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-2xl">{link.icon || '🔗'}</span>
+                        <div className="flex items-start justify-between gap-2.5">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="text-3xl shrink-0">{link.icon || '🔗'}</span>
                             <div className="min-w-0">
-                              <h4 className="font-extrabold text-sm text-slate-900 truncate">
+                              <h4 className="font-extrabold text-base sm:text-lg text-slate-900 truncate">
                                 {link.label}
                               </h4>
-                              <span className="text-[10px] text-slate-400 font-medium">
+                              <span className="text-xs text-slate-500 font-semibold block mt-0.5">
                                 Kategori: {link.kategori || 'Operasional'}
                               </span>
                             </div>
@@ -1574,7 +1574,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                           <button
                             type="button"
                             onClick={() => handleToggleVisibility(link)}
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border inline-flex items-center gap-1 cursor-pointer ${
+                            className={`text-xs font-bold px-2.5 py-1 rounded-full border inline-flex items-center gap-1 cursor-pointer shrink-0 ${
                               isAktif
                                 ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                                 : 'bg-amber-100 text-amber-800 border-amber-300'
@@ -1585,14 +1585,14 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                         </div>
 
                         {link.deskripsi && (
-                          <p className="text-xs text-slate-500 mt-2 line-clamp-2">
+                          <p className="text-xs sm:text-sm text-slate-600 mt-2 font-medium">
                             {link.deskripsi}
                           </p>
                         )}
 
                         {/* Current URL Box */}
-                        <div className="mt-3 bg-slate-50 rounded-xl p-2.5 border border-slate-200">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        <div className="mt-3.5 bg-slate-50 rounded-xl p-3 border border-slate-200">
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
                             URL Dokumen / Formulir Saat Ini:
                           </span>
                           {link.url ? (
@@ -1600,12 +1600,12 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                               href={link.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-xs font-semibold text-blue-600 hover:underline truncate block mt-0.5"
+                              className="text-xs sm:text-sm font-semibold text-blue-600 hover:underline truncate block mt-1 font-mono"
                             >
                               {link.url}
                             </a>
                           ) : (
-                            <span className="text-xs font-semibold text-amber-600 italic block mt-0.5">
+                            <span className="text-xs sm:text-sm font-semibold text-amber-600 italic block mt-1">
                               Belum ada URL (Perlu diisi)
                             </span>
                           )}
@@ -1613,16 +1613,16 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                       </div>
 
                       {/* Fast Edit Action Button */}
-                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                        <span className="text-[10px] text-slate-400">
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-xs text-slate-400">
                           Update: {link.terakhirUpdate || '-'}
                         </span>
                         <button
                           type="button"
                           onClick={() => handleOpenStaffFastEdit(link)}
-                          className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                          className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold inline-flex items-center gap-2 cursor-pointer shadow-xs transition-colors"
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
+                          <Edit2 className="w-4 h-4" />
                           <span>Perbarui URL &amp; Isi</span>
                         </button>
                       </div>
@@ -1713,10 +1713,10 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                     <CloudUpload className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-sm sm:text-base text-slate-900">
+                    <h3 className="font-black text-base sm:text-lg text-slate-900">
                       Integrasi Google Apps Script &amp; Spreadsheet Master
                     </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs sm:text-sm text-slate-500 mt-1">
                       Sinkronkan data secara real-time ke Google Spreadsheet Divisi Produksi I agar data antar-HP selalu sama.
                     </p>
                   </div>
@@ -1724,7 +1724,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
                 <div className="flex items-center gap-2">
                   <span
-                    className={`text-xs font-bold px-3 py-1 rounded-full ${
+                    className={`text-xs sm:text-sm font-bold px-3.5 py-1.5 rounded-full ${
                       gasConfig.webAppUrl
                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                         : 'bg-amber-100 text-amber-800 border border-amber-300'
@@ -1736,9 +1736,9 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               </div>
 
               {/* GAS Config Form */}
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 <div>
-                  <label className="text-xs font-bold text-slate-800 block mb-1">
+                  <label className="text-xs sm:text-sm font-bold text-slate-800 block mb-1">
                     URL Exec Google Apps Script:
                   </label>
                   <input
@@ -1749,28 +1749,28 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                       onGasConfigUpdated(updated);
                     }}
                     placeholder="https://script.google.com/macros/s/.../exec"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <p className="text-[11px] text-slate-400 mt-1">
+                  <p className="text-xs text-slate-400 mt-1">
                     Deploy web app di Google Apps Script dengan akses: &quot;Anyone (Siapa saja)&quot;.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
-                    <label className="text-xs font-bold text-slate-800 block mb-1">
+                    <label className="text-xs sm:text-sm font-bold text-slate-800 block mb-1">
                       ID Spreadsheet Master:
                     </label>
                     <input
                       type="text"
                       readOnly
                       value="1dlpuMXPQEQcd4YKsmAUN7OrXc85wX7HJ9Pcd_3tlKFA"
-                      className="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-mono text-slate-700"
+                      className="w-full bg-slate-100 border border-slate-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-mono text-slate-700"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold text-slate-800 block mb-1">
+                    <label className="text-xs sm:text-sm font-bold text-slate-800 block mb-1">
                       Passcode Admin Verifikasi:
                     </label>
                     <input
@@ -1780,21 +1780,21 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                         const updated = { ...gasConfig, adminPasscode: e.target.value.trim() };
                         onGasConfigUpdated(updated);
                       }}
-                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Sync Actions Buttons */}
-              <div className="pt-2 border-t border-slate-200 flex flex-wrap items-center gap-2">
+              <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center gap-2.5">
                 <button
                   type="button"
                   onClick={handlePullFromSheets}
                   disabled={isSyncingGas}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs sm:text-sm font-bold inline-flex items-center gap-2 cursor-pointer shadow-xs transition-colors"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingGas ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-4 h-4 ${isSyncingGas ? 'animate-spin' : ''}`} />
                   <span>{isSyncingGas ? 'Memproses...' : 'Tarik Data dari Google Sheets'}</span>
                 </button>
 
@@ -1802,19 +1802,19 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                   type="button"
                   onClick={handlePushAllToSheets}
                   disabled={isSyncingGas}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs sm:text-sm font-bold inline-flex items-center gap-2 cursor-pointer shadow-xs transition-colors"
                 >
-                  <CloudUpload className="w-3.5 h-3.5" />
+                  <CloudUpload className="w-4 h-4" />
                   <span>Kirim Master Data ke Google Sheets</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleCopyHpSyncUrl}
-                  className="px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 text-xs sm:text-sm font-bold inline-flex items-center gap-2 cursor-pointer shadow-2xs"
                   title="Salin link yang otomatis menghubungkan ponsel ke GAS"
                 >
-                  <Smartphone className="w-3.5 h-3.5 text-blue-600" />
+                  <Smartphone className="w-4 h-4 text-blue-600" />
                   <span>Salin Link Sinkronisasi HP</span>
                 </button>
               </div>
@@ -1822,10 +1822,10 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
             {/* Backup & Restore JSON Box */}
             <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-2xs">
-              <h4 className="font-extrabold text-xs uppercase tracking-wider text-slate-700 mb-1">
+              <h4 className="font-extrabold text-xs sm:text-sm uppercase tracking-wider text-slate-700 mb-1">
                 Cadangan File Lokal (JSON)
               </h4>
-              <p className="text-xs text-slate-500 mb-3">
+              <p className="text-xs sm:text-sm text-slate-500 mb-3.5">
                 Unduh file cadangan untuk arsip lokal komputer atau pulihkan jika spreadsheet mengalami perubahan yang tidak disengaja.
               </p>
 
@@ -1864,56 +1864,56 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
         {activeTab === 'stats' && (
           <div className="space-y-4">
             {/* Top Metric Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-              <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-xs">
-                <span className="text-[11px] text-blue-300 font-bold block uppercase tracking-wider">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="bg-slate-900 text-white rounded-2xl p-4 sm:p-5 shadow-xs">
+                <span className="text-xs sm:text-sm text-blue-300 font-bold block uppercase tracking-wider">
                   Total Kunjungan
                 </span>
                 <div className="text-2xl sm:text-3xl font-black mt-1">
                   {(stats.totalKunjungan || 0).toLocaleString()}
                 </div>
-                <span className="text-[10px] text-slate-400">Semua perangkat</span>
+                <span className="text-xs text-slate-400 mt-0.5 block">Semua perangkat</span>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 shadow-2xs">
-                <span className="text-[11px] text-blue-700 font-bold block uppercase tracking-wider">
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 sm:p-5 shadow-2xs">
+                <span className="text-xs sm:text-sm text-blue-700 font-bold block uppercase tracking-wider">
                   Kunjungan Hari Ini
                 </span>
                 <div className="text-2xl sm:text-3xl font-black text-blue-900 mt-1">
                   {(stats.kunjunganHariIni || 0).toLocaleString()}
                 </div>
-                <span className="text-[10px] text-blue-600">Shift 1, 2, dan 3</span>
+                <span className="text-xs text-blue-600 mt-0.5 block">Shift 1, 2, dan 3</span>
               </div>
 
-              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 shadow-2xs">
-                <span className="text-[11px] text-emerald-700 font-bold block uppercase tracking-wider">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 sm:p-5 shadow-2xs">
+                <span className="text-xs sm:text-sm text-emerald-700 font-bold block uppercase tracking-wider">
                   Total Klik Tautan
                 </span>
                 <div className="text-2xl sm:text-3xl font-black text-emerald-900 mt-1">
                   {(stats.totalKlik || 0).toLocaleString()}
                 </div>
-                <span className="text-[10px] text-emerald-600">Akses dokumen pabrik</span>
+                <span className="text-xs text-emerald-600 mt-0.5 block">Akses dokumen pabrik</span>
               </div>
 
-              <div className="bg-slate-100 border border-slate-200 rounded-2xl p-4 shadow-2xs">
-                <span className="text-[11px] text-slate-600 font-bold block uppercase tracking-wider">
+              <div className="bg-slate-100 border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-2xs">
+                <span className="text-xs sm:text-sm text-slate-600 font-bold block uppercase tracking-wider">
                   Tautan Aktif
                 </span>
                 <div className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">
                   {flatLinks.filter((l) => String(l.aktif).toUpperCase() === 'TRUE').length}
                 </div>
-                <span className="text-[10px] text-slate-500">Tampil di portal publik</span>
+                <span className="text-xs text-slate-500 mt-0.5 block">Tampil di portal publik</span>
               </div>
             </div>
 
             {/* Trend Chart */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3">
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-2xs space-y-3.5">
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                  <h4 className="text-sm sm:text-base font-extrabold uppercase tracking-wider text-slate-800">
                     Grafik Tren Kunjungan Harian
                   </h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                     Aktivitas personil membuka portal per hari
                   </p>
                 </div>

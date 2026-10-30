@@ -569,11 +569,11 @@ export default function App() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Profile Card Header: Logo Sejajar dengan Teks (Kompak & Bersih Tanpa Baris Header) */}
-        <div className="max-w-md mx-auto text-center flex flex-col items-center pt-2">
-          <div className="flex items-center justify-center gap-3 sm:gap-4 text-left">
+        <div className="max-w-xl mx-auto text-center flex flex-col items-center pt-2 pb-1">
+          <div className="flex items-center justify-center gap-3.5 sm:gap-5 text-left">
             {/* Logo Avatar Lingkaran Putih */}
             <div className="relative shrink-0">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white p-1.5 shadow-md border-2 border-white/40 flex items-center justify-center">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white p-2 shadow-lg border-2 border-white/50 flex items-center justify-center">
                 <img
                   src="/logo.svg"
                   alt="Logo 153 PT Batu Karang"
@@ -582,12 +582,12 @@ export default function App() {
               </div>
             </div>
 
-            {/* Teks Sejajar: Sub-judul Cyan & Judul Utama (Tanpa Tombol Pensil) */}
+            {/* Teks Sejajar: Sub-judul Cyan & Judul Utama */}
             <div className="flex flex-col min-w-0">
-              <p className="text-[#38bdf8] font-bold tracking-wider text-[11px] sm:text-xs uppercase truncate">
+              <p className="text-[#38bdf8] font-bold tracking-wider text-xs sm:text-sm uppercase truncate">
                 {bannerConfig.badge}
               </p>
-              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight truncate">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-tight truncate">
                 {bannerConfig.title}
               </h1>
             </div>
@@ -595,27 +595,27 @@ export default function App() {
 
           {/* Deskripsi Subtitle */}
           {bannerConfig.description && (
-            <p className="text-slate-300 text-xs sm:text-[13px] mt-2.5 max-w-md mx-auto leading-relaxed px-2 font-normal">
+            <p className="text-slate-200 text-sm sm:text-base mt-3 max-w-xl mx-auto leading-relaxed px-2 font-medium">
               {bannerConfig.description}
             </p>
           )}
 
           {/* Input Pencarian Bersih (Jika Diaktifkan) */}
           {isSearchOpen && (
-            <div className="w-full max-w-sm mt-3 relative animate-in fade-in slide-in-from-top-2 duration-150">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <div className="w-full max-w-md mt-4 relative animate-in fade-in slide-in-from-top-2 duration-150">
+              <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 autoFocus
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari tautan, formulir, atau SOP..."
-                className="w-full bg-white text-slate-900 text-xs sm:text-sm rounded-full pl-9 pr-8 py-2 shadow-md focus:outline-none focus:ring-2 focus:ring-[#004771] placeholder:text-slate-400"
+                className="w-full bg-white text-slate-900 text-sm sm:text-base rounded-full pl-10 pr-9 py-2.5 shadow-md focus:outline-none focus:ring-2 focus:ring-[#004771] placeholder:text-slate-400"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm font-bold cursor-pointer"
                 >
                   ✕
                 </button>
@@ -625,25 +625,25 @@ export default function App() {
         </div>
       </section>
 
-      {/* 2. Main Content: Vertically Stacked Clean Cards DENGAN JARAK PROPORSONAL (TIDAK BERTUMPUK) */}
-      <main className="max-w-xl w-full mx-auto px-4 mt-6 sm:mt-7 space-y-3.5 pb-16 flex-1 min-w-0">
+      {/* 2. Main Content: Vertically Stacked Clean Cards DENGAN UKURAN PROPORSIONAL & LEGA */}
+      <main className="max-w-2xl sm:max-w-3xl w-full mx-auto px-4 mt-6 sm:mt-8 space-y-4 pb-20 flex-1 min-w-0">
         {/* Menu Pengaturan & Kelola Link Utama (Hanya Tampil di Mode Internal/Admin) */}
         {!isPublicMode && (
-          <div className="bg-slate-900 text-white rounded-2xl p-3.5 sm:p-4 shadow-md border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in duration-150">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-blue-600/30 border border-blue-400/40 flex items-center justify-center text-blue-400 shrink-0">
-                <ListPlus className="w-5 h-5" />
+          <div className="bg-slate-900 text-white rounded-2xl p-4 sm:p-5 shadow-md border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in duration-150">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-blue-600/30 border border-blue-400/40 flex items-center justify-center text-blue-400 shrink-0">
+                <ListPlus className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-extrabold text-xs sm:text-sm text-white">
+                  <h3 className="font-black text-sm sm:text-base text-white">
                     Menu Pengaturan Link
                   </h3>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                     {currentRole}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                <p className="text-xs sm:text-sm text-slate-400 truncate mt-0.5">
                   Tambah link, edit, hapus, sembunyikan link &amp; atur wewenang staf
                 </p>
               </div>
@@ -656,30 +656,30 @@ export default function App() {
                   setDashboardTab('links');
                   setViewMode('dashboard');
                 }}
-                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-colors inline-flex items-center gap-1.5 cursor-pointer shrink-0"
+                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors inline-flex items-center gap-1.5 cursor-pointer shrink-0"
                 title="Buka Dashboard Manajemen & Pengaturan Link"
               >
-                <LayoutDashboard className="w-3.5 h-3.5" />
+                <LayoutDashboard className="w-4 h-4" />
                 <span>Pengaturan Link</span>
               </button>
 
               <button
                 type="button"
                 onClick={togglePublicMode}
-                className="px-3 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors inline-flex items-center gap-1 cursor-pointer shrink-0"
+                className="px-3.5 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold transition-colors inline-flex items-center gap-1.5 cursor-pointer shrink-0"
                 title="Beralih ke pratinjau publik bersih"
               >
-                <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                <Eye className="w-4 h-4 text-emerald-400" />
                 <span>Pratinjau Publik</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleCopyPublicLink}
-                className="px-3 py-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors inline-flex items-center gap-1 cursor-pointer shrink-0"
+                className="px-3.5 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold transition-colors inline-flex items-center gap-1.5 cursor-pointer shrink-0"
                 title="Salin link publik bersih untuk dibagikan ke umum"
               >
-                <Share2 className="w-3.5 h-3.5 text-blue-400" />
+                <Share2 className="w-4 h-4 text-blue-400" />
                 <span>Salin Link</span>
               </button>
             </div>
