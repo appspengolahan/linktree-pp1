@@ -43,8 +43,9 @@ import {
   clearAuthenticatedCompanyUser,
   getDeletedLinkIds,
   getDeletedLinkLabels,
+  mergeRemoteLinksWithLocal,
 } from './services/storage';
-import { fetchGasLinks, postGasRecordClick } from './services/gasApi';
+import { fetchGasLinks, postGasRecordClick, pushGasAllLinks } from './services/gasApi';
 import { isLinkRelevantForRole, hasFullAccessRole } from './services/rbac';
 
 import { CompanyLoginGate } from './components/CompanyLoginGate';
@@ -209,14 +210,16 @@ export default function App() {
     try {
       const res = await fetchGasLinks(cfg.webAppUrl);
       if (res.success && res.links && res.links.length > 0) {
-        const deletedIds = new Set(getDeletedLinkIds());
-        const deletedLabels = new Set(getDeletedLinkLabels());
-        const filteredResLinks = res.links.filter(
-          (l) => !deletedIds.has(l.id) && (!l.label || !deletedLabels.has(l.label.trim().toLowerCase()))
-        );
-        const flat = normalizeAndFlattenLinks(filteredResLinks);
-        setLinks(flat);
-        saveStoredLinks(flat); // Simpan ke cache lokal agar device lain langsung memiliki data terbaru
+        const { merged, unpushedToRemote } = mergeRemoteLinksWithLocal(res.links);
+        setLinks(merged);
+        saveStoredLinks(merged);
+
+        // Jika terdapat item lokal baru yang belum tercatat di spreadsheet (misal grup/sublink baru),
+        // otomatis push seluruh data bersih ke Google Sheets agar sinkron dua arah!
+        if (unpushedToRemote.length > 0 && cfg.webAppUrl) {
+          pushGasAllLinks(cfg.webAppUrl, merged, cfg.adminPasscode).catch(() => {});
+        }
+
         setGasConfig((prev) => {
           const updated: GasConfig = {
             ...prev,

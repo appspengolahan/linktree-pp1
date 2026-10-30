@@ -44,6 +44,7 @@ import {
   resetAllStatistics,
   factoryResetAll,
   saveStoredLinks,
+  getStoredLinks,
   getUserRole,
   normalizeAndFlattenLinks,
   setLinkStaffPermissions,
@@ -360,18 +361,22 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       allowedStaffIds: formAllowedStaffIds,
     };
 
-    saveOrUpdateLink(payload);
+    const saveRes = saveOrUpdateLink(payload);
+    const completeItem = saveRes.item || { ...payload, id: saveRes.id };
     setStaffList(getStoredStaffList());
     setIsFormOpen(false);
     onDataChanged();
     showToast(editingLink ? 'Tautan berhasil diperbarui.' : 'Tautan baru berhasil disimpan.');
 
     if (gasConfig.webAppUrl) {
-      pushGasLink(gasConfig.webAppUrl, payload, gasConfig.adminPasscode).then((gasRes) => {
+      pushGasLink(gasConfig.webAppUrl, completeItem, gasConfig.adminPasscode).then((gasRes) => {
         if (gasRes.success) {
           showToast('Data otomatis tersinkronkan ke Google Sheets!');
         }
       }).catch(() => {});
+
+      const currentAll = getStoredLinks();
+      pushGasAllLinks(gasConfig.webAppUrl, currentAll, gasConfig.adminPasscode).catch(() => {});
     }
   };
 

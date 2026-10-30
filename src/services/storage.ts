@@ -508,6 +508,22 @@ export function addDeletedLinkRecord(id: string, label?: string): void {
   }
 }
 
+export function removeDeletedLinkRecord(id: string, label?: string): void {
+  try {
+    if (id) {
+      const ids = getDeletedLinkIds().filter((i) => i !== id);
+      localStorage.setItem(CACHE_KEY_DELETED_IDS, JSON.stringify(ids));
+    }
+    if (label && label.trim()) {
+      const norm = label.trim().toLowerCase();
+      const labels = getDeletedLinkLabels().filter((l) => l !== norm);
+      localStorage.setItem(CACHE_KEY_DELETED_LABELS, JSON.stringify(labels));
+    }
+  } catch (e) {
+    console.error('Gagal menghapus catatan blacklist link:', e);
+  }
+}
+
 // ------------------------------------------------------------
 // COMPANY USER AUTHENTICATION GATE (Sesi Login Satu Kali di Local Cache)
 // ------------------------------------------------------------
@@ -593,6 +609,76 @@ export function normalizeAndFlattenLinks(rawLinks: LinkItem[]): LinkItem[] {
   return flat;
 }
 
+/**
+ * Menggabungkan tautan dari Google Sheets dengan penyimpanan lokal secara cerdas:
+ * 1. Menghormati blacklist tautan yang dihapus pengguna (mencegah link terhapus muncul kembali)
+ * 2. Mempertahankan grup & sub-link baru yang dibuat secara lokal agar TIDAK hilang saat di-refresh!
+ * 3. Mengembalikan item lokal baru yang perlu didorong ke Google Sheets
+ */
+export function mergeRemoteLinksWithLocal(remoteRawLinks: LinkItem[]): {
+  merged: LinkItem[];
+  unpushedToRemote: LinkItem[];
+} {
+  const deletedIds = new Set(getDeletedLinkIds());
+  const deletedLabels = new Set(getDeletedLinkLabels());
+
+  // Filter remote links yang sudah pernah dihapus
+  const filteredRemote = (remoteRawLinks || []).filter(
+    (l) => !deletedIds.has(l.id) && (!l.label || !deletedLabels.has(l.label.trim().toLowerCase()))
+  );
+  const remoteFlat = normalizeAndFlattenLinks(filteredRemote);
+
+  const localStored = getStoredLinks();
+  const mergedMap = new Map<string, LinkItem>();
+
+  // 1. Masukkan semua link dari remote (Google Sheets)
+  remoteFlat.forEach((r) => {
+    mergedMap.set(r.id, { ...r });
+  });
+
+  // 2. Pertahankan semua link & grup lokal yang TIDAK di-blacklist dan belum ada di remote
+  const unpushedToRemote: LinkItem[] = [];
+  localStored.forEach((loc) => {
+    if (deletedIds.has(loc.id)) return;
+    if (loc.label && deletedLabels.has(loc.label.trim().toLowerCase())) return;
+
+    // Cek apakah item ini sudah ada di remote
+    const remoteMatch = remoteFlat.find(
+      (r) =>
+        r.id === loc.id ||
+        (r.label &&
+          loc.label &&
+          r.label.trim().toLowerCase() === loc.label.trim().toLowerCase() &&
+          r.tipe === loc.tipe)
+    );
+
+    if (!remoteMatch) {
+      // Data lokal baru yang belum masuk ke Google Sheets (misal: "HR SYSTEM PP1")
+      mergedMap.set(loc.id, { ...loc });
+      unpushedToRemote.push(loc);
+    } else {
+      // Jika sudah ada di remote, pertahankan hak staf dan parentId jika ada di lokal
+      const existing = mergedMap.get(remoteMatch.id);
+      if (existing) {
+        if (
+          (!existing.allowedStaffIds || existing.allowedStaffIds.length === 0) &&
+          loc.allowedStaffIds &&
+          loc.allowedStaffIds.length > 0
+        ) {
+          existing.allowedStaffIds = loc.allowedStaffIds;
+        }
+        if (loc.parentId && !existing.parentId) {
+          existing.parentId = loc.parentId;
+        }
+      }
+    }
+  });
+
+  const merged = Array.from(mergedMap.values());
+  merged.sort((a, b) => (Number(a.urutan) || 0) - (Number(b.urutan) || 0));
+
+  return { merged, unpushedToRemote };
+}
 
 export function getStoredLinks(): LinkItem[] {
   try {
@@ -752,7 +838,7 @@ export function recordLocalClick(id: string): void {
   }
 }
 
-export function saveOrUpdateLink(link: Partial<LinkItem>): { success: boolean; id: string } {
+export function saveOrUpdateLink(link: Partial<LinkItem>): { success: boolean; id: string; item: LinkItem } {
   const links = getStoredLinks();
   const now = new Date();
   const timeStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -760,6 +846,9 @@ export function saveOrUpdateLink(link: Partial<LinkItem>): { success: boolean; i
   const isGroup = link.tipe === 'Grup';
   const prefix = isGroup ? 'GRP' : 'LNK';
   const newId = link.id || `${prefix}-${Date.now().toString().slice(-6)}`;
+
+  // Pastikan link baru yang disimpan tidak lagi berada dalam daftar blacklist terhapus
+  removeDeletedLinkRecord(newId, link.label);
 
   const existingIdx = links.findIndex((l) => l.id === newId);
 
@@ -823,7 +912,7 @@ export function saveOrUpdateLink(link: Partial<LinkItem>): { success: boolean; i
   stats.totalLinkAktif = links.filter((l) => String(l.aktif).toUpperCase() === 'TRUE' && l.tipe !== 'Grup').length;
   saveStoredStats(stats);
 
-  return { success: true, id: newId };
+  return { success: true, id: newId, item: itemToSave };
 }
 
 // Atur Hak Akses Staf Khusus untuk Suatu Tautan

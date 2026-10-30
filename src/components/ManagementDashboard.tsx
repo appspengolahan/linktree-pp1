@@ -60,6 +60,7 @@ import {
   resetAllStatistics,
   factoryResetAll,
   saveStoredLinks,
+  getStoredLinks,
   normalizeAndFlattenLinks,
   setLinkStaffPermissions,
   saveUserRole,
@@ -68,6 +69,7 @@ import {
   canStaffEditLink,
   updateLinkByStaff,
   getAuthenticatedCompanyUser,
+  mergeRemoteLinksWithLocal,
 } from '../services/storage';
 import { pushGasLink, pushGasDeleteLink, pushGasAllLinks, fetchGasLinks } from '../services/gasApi';
 import { hasFullAccessRole, canStaffAccessFeature } from '../services/rbac';
@@ -435,7 +437,8 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
       allowedStaffIds: formAllowedStaffIds,
     };
 
-    saveOrUpdateLink(payload);
+    const saveRes = saveOrUpdateLink(payload);
+    const completeItem = saveRes.item || { ...payload, id: saveRes.id };
     setStaffList(getStoredStaffList());
     setIsFormModalOpen(false);
     onDataChanged();
@@ -443,11 +446,15 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
     // Auto-sync ke GAS
     if (gasConfig.webAppUrl) {
-      pushGasLink(gasConfig.webAppUrl, payload, gasConfig.adminPasscode).then((res) => {
+      pushGasLink(gasConfig.webAppUrl, completeItem, gasConfig.adminPasscode).then((res) => {
         if (res.success) {
           showToast('Data otomatis tersinkronkan ke Google Sheets.');
         }
       }).catch(() => {});
+
+      // Sinkronisasi hierarki lengkap ke Google Sheets
+      const currentAll = getStoredLinks();
+      pushGasAllLinks(gasConfig.webAppUrl, currentAll, gasConfig.adminPasscode).catch(() => {});
     }
   };
 
@@ -740,12 +747,17 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
       const res = await fetchGasLinks(gasConfig.webAppUrl);
       setIsSyncingGas(false);
       if (res.success && res.links) {
-        const flat = normalizeAndFlattenLinks(res.links);
-        saveStoredLinks(flat);
+        const { merged, unpushedToRemote } = mergeRemoteLinksWithLocal(res.links);
+        saveStoredLinks(merged);
         onDataChanged();
+
+        if (unpushedToRemote.length > 0 && gasConfig.webAppUrl) {
+          pushGasAllLinks(gasConfig.webAppUrl, merged, gasConfig.adminPasscode).catch(() => {});
+        }
+
         const updatedConfig = { ...gasConfig, syncStatus: 'online' as const, lastSyncTimestamp: Date.now() };
         onGasConfigUpdated(updatedConfig);
-        showToast(`Berhasil menarik ${flat.length} data terbaru dari Google Sheets!`);
+        showToast(`Berhasil menyinkronkan ${merged.length} data dengan Google Sheets!`);
       } else {
         showAlert('Gagal mengambil data dari Google Sheets: ' + (res.error || 'Periksa koneksi'));
       }
