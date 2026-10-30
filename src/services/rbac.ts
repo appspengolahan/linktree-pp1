@@ -1,4 +1,4 @@
-import { Role, RolePermission, LinkItem } from '../types';
+import { Role, RolePermission, LinkItem, StaffMember, StaffFeatureKey } from '../types';
 
 export const ROLE_PERMISSIONS: Record<Role, RolePermission> = {
   Developer: {
@@ -90,4 +90,29 @@ export function isLinkRelevantForRole(link: LinkItem, role: Role): boolean {
 
   // Jika tidak, cocokkan dengan kategori prioritas peran
   return perm.priorityCategories.includes(link.kategori);
+}
+
+/**
+ * Cek apakah seorang staf memiliki wewenang untuk mengakses suatu fitur sistem.
+ * Jika TIDAK, fitur tersebut HARUS DISEMBUNYIKAN sepenuhnya dari UI.
+ */
+export function canStaffAccessFeature(
+  staff: StaffMember | null,
+  feature: StaffFeatureKey,
+  currentRole?: Role | string
+): boolean {
+  // Peran Full Access (Developer, Site Engineer, Manajer Operasional) selalu memiliki semua akses
+  if (hasFullAccessRole(currentRole)) return true;
+  if (!staff) return false;
+  if (hasFullAccessRole(staff.jabatan)) return true;
+  if (staff.allowedLinkIds?.includes('*')) return true;
+
+  // Cek apakah staf memiliki daftar allowedFeatures yang diatur oleh Admin
+  if (Array.isArray(staff.allowedFeatures)) {
+    return staff.allowedFeatures.includes(feature);
+  }
+
+  // Nilai default untuk staf biasa: hanya melihat analitik, fitur manajemen disembunyikan
+  if (feature === 'view_analytics') return true;
+  return false;
 }

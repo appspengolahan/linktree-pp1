@@ -29,7 +29,7 @@ import {
   Smartphone,
   CloudUpload,
 } from 'lucide-react';
-import { LinkItem, StatistikData, GasConfig, StaffMember, DEFAULT_STAFF_PIN } from '../types';
+import { LinkItem, StatistikData, GasConfig, StaffMember, DEFAULT_STAFF_PIN, StaffFeatureKey, SYSTEM_FEATURES } from '../types';
 import { Logo153 } from './Logo153';
 import {
   saveOrUpdateLink,
@@ -102,6 +102,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [staffPin, setStaffPin] = useState(DEFAULT_STAFF_PIN);
   const [staffUnit, setStaffUnit] = useState('Operasional & Lini');
   const [staffAllowedLinkIds, setStaffAllowedLinkIds] = useState<string[]>([]);
+  const [staffAllowedFeatures, setStaffAllowedFeatures] = useState<StaffFeatureKey[]>([]);
   const [staffAktif, setStaffAktif] = useState(true);
 
   // Show/Hide PIN State
@@ -468,6 +469,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setStaffPin(DEFAULT_STAFF_PIN);
     setStaffUnit('Operasional & Lini');
     setStaffAllowedLinkIds([]);
+    setStaffAllowedFeatures(['view_analytics']);
     setStaffAktif(true);
     setIsStaffFormOpen(true);
   };
@@ -480,12 +482,22 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setStaffPin(staff.pin);
     setStaffUnit(staff.unit);
     setStaffAllowedLinkIds(staff.allowedLinkIds || []);
+    setStaffAllowedFeatures(
+      Array.isArray(staff.allowedFeatures)
+        ? [...staff.allowedFeatures]
+        : hasFullAccessRole(staff.jabatan) || staff.allowedLinkIds?.includes('*')
+        ? SYSTEM_FEATURES.map((f) => f.key)
+        : ['view_analytics']
+    );
     setStaffAktif(staff.aktif);
     setIsStaffFormOpen(true);
   };
 
   const handleSaveStaffForm = (e: React.FormEvent) => {
     e.preventDefault();
+    const isSuper = hasFullAccessRole(staffJabatan) || staffAllowedLinkIds.includes('*');
+    const finalFeatures = isSuper ? SYSTEM_FEATURES.map((f) => f.key) : staffAllowedFeatures;
+
     const payload: Partial<StaffMember> = {
       id: editingStaff?.id,
       nama: staffNama,
@@ -494,6 +506,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       pin: staffPin || DEFAULT_STAFF_PIN,
       unit: staffUnit,
       allowedLinkIds: staffAllowedLinkIds,
+      allowedFeatures: finalFeatures,
       aktif: staffAktif,
     };
 
@@ -2249,6 +2262,73 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             <span className="truncate">{link.label}</span>
                             <span className="text-[10px] text-slate-400 font-normal truncate">
                               ID: {link.id} · {link.kategori} {link.tipe === 'Grup' ? '(Grup)' : ''}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* ==================== KATEGORI 2: FITUR SISTEM ==================== */}
+                <div className="pt-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded mr-1">
+                        Kategori 2
+                      </span>
+                      <label className="font-bold text-slate-800 text-xs">
+                        Hak Akses Fitur Sistem ({staffAllowedFeatures.length} aktif)
+                      </label>
+                    </div>
+                    <div className="flex gap-2 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setStaffAllowedFeatures(SYSTEM_FEATURES.map((f) => f.key))}
+                        className="text-purple-600 font-bold hover:underline"
+                      >
+                        Beri Semua
+                      </button>
+                      <span className="text-slate-300">|</span>
+                      <button
+                        type="button"
+                        onClick={() => setStaffAllowedFeatures([])}
+                        className="text-rose-600 font-bold hover:underline"
+                      >
+                        Cabut Semua
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="border border-slate-200 rounded-xl max-h-44 overflow-y-auto p-2 space-y-1.5 bg-slate-50 custom-scrollbar">
+                    {SYSTEM_FEATURES.map((feat) => {
+                      const isGranted = staffAllowedFeatures.includes(feat.key);
+                      return (
+                        <div
+                          key={feat.key}
+                          onClick={() => {
+                            if (isGranted) {
+                              setStaffAllowedFeatures((prev) => prev.filter((k) => k !== feat.key));
+                            } else {
+                              setStaffAllowedFeatures((prev) => [...prev, feat.key]);
+                            }
+                          }}
+                          className={`flex items-start gap-2.5 p-2 rounded-lg cursor-pointer transition-colors text-xs ${
+                            isGranted ? 'bg-purple-50 border border-purple-200 text-purple-950 font-bold' : 'hover:bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          <div className="shrink-0 text-purple-600 mt-0.5">
+                            {isGranted ? <CheckSquare className="w-4 h-4 fill-purple-600 text-white" /> : <Square className="w-4 h-4 text-slate-400" />}
+                          </div>
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-slate-900">{feat.icon} {feat.label}</span>
+                              <span className={`text-[9px] px-1.5 py-0.2 rounded font-semibold ${isGranted ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
+                                {isGranted ? 'Diizinkan' : 'Disembunyikan'}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-500 font-normal">
+                              {feat.deskripsi}
                             </span>
                           </div>
                         </div>

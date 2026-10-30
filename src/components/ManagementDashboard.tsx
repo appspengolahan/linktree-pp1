@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   ArrowLeft,
   LayoutDashboard,
@@ -44,6 +44,8 @@ import {
   GasConfig,
   Role,
   DEFAULT_STAFF_PIN,
+  StaffFeatureKey,
+  SYSTEM_FEATURES,
 } from '../types';
 import { Logo153 } from './Logo153';
 import {
@@ -68,7 +70,7 @@ import {
   getAuthenticatedCompanyUser,
 } from '../services/storage';
 import { pushGasLink, pushGasDeleteLink, pushGasAllLinks, fetchGasLinks } from '../services/gasApi';
-import { hasFullAccessRole } from '../services/rbac';
+import { hasFullAccessRole, canStaffAccessFeature } from '../services/rbac';
 
 interface ManagementDashboardProps {
   currentRole: Role;
@@ -117,7 +119,16 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
     hasFullAccessRole(currentRole) &&
     (!activeStaff || hasFullAccessRole(activeStaff.jabatan) || activeStaff.allowedLinkIds?.includes('*'));
 
-  // Cek apakah user berhak mengedit tautan/grup tertentu
+  // Penentuan hak akses fitur sistem (Kategori 2):
+  // Fitur yang tidak diizinkan otomatis DISEMBUNYIKAN dari dashboard staf ini
+  const canAccessStaffTab = isFullAccess || canStaffAccessFeature(activeStaff, 'manage_staff', currentRole);
+  const canAccessSheetsTab = isFullAccess || canStaffAccessFeature(activeStaff, 'sync_sheets', currentRole);
+  const canAccessAnalyticsTab = isFullAccess || canStaffAccessFeature(activeStaff, 'view_analytics', currentRole);
+  const canCreateLinks = isFullAccess || canStaffAccessFeature(activeStaff, 'create_links', currentRole);
+  const canDeleteLinks = isFullAccess || canStaffAccessFeature(activeStaff, 'delete_links', currentRole);
+  const canAssignPic = isFullAccess || canStaffAccessFeature(activeStaff, 'assign_pic', currentRole);
+
+  // Cek apakah user berhak mengedit tautan/grup tertentu (Kategori 1)
   const checkCanEdit = (item: LinkItem): boolean => {
     if (isFullAccess) return true;
     if (!activeStaff) return false;
@@ -134,6 +145,17 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
     if (!isFullAccess && activeStaff) return 'links';
     return initialTab;
   });
+
+  // Auto-redirect jika pengguna berada di tab yang tidak diizinkan (disembunyikan)
+  useEffect(() => {
+    if (activeTab === 'staff' && !canAccessStaffTab) {
+      setActiveTab('links');
+    } else if (activeTab === 'gas' && !canAccessSheetsTab) {
+      setActiveTab('links');
+    } else if (activeTab === 'stats' && !canAccessAnalyticsTab) {
+      setActiveTab('links');
+    }
+  }, [activeTab, canAccessStaffTab, canAccessSheetsTab, canAccessAnalyticsTab]);
 
   // Master Staff List
   const [staffList, setStaffList] = useState<StaffMember[]>(() => getStoredStaffList());
@@ -171,6 +193,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
   const [staffUnit, setStaffUnit] = useState('Operasional & Lini');
   const [staffPin, setStaffPin] = useState(DEFAULT_STAFF_PIN);
   const [staffAllowedLinkIds, setStaffAllowedLinkIds] = useState<string[]>([]);
+  const [staffAllowedFeatures, setStaffAllowedFeatures] = useState<StaffFeatureKey[]>([]);
   const [staffAktif, setStaffAktif] = useState(true);
 
   // Reset PIN Dialog
@@ -548,6 +571,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
     setStaffUnit('Operasional & Lini');
     setStaffPin(DEFAULT_STAFF_PIN);
     setStaffAllowedLinkIds([]);
+    setStaffAllowedFeatures(['view_analytics']);
     setStaffAktif(true);
     setIsStaffModalOpen(true);
   };
@@ -560,6 +584,14 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
     setStaffUnit(staff.unit || 'Operasional & Lini');
     setStaffPin(staff.pin || DEFAULT_STAFF_PIN);
     setStaffAllowedLinkIds(Array.isArray(staff.allowedLinkIds) ? [...staff.allowedLinkIds] : []);
+    const isSuper = hasFullAccessRole(staff.jabatan) || staff.allowedLinkIds?.includes('*');
+    setStaffAllowedFeatures(
+      Array.isArray(staff.allowedFeatures)
+        ? [...staff.allowedFeatures]
+        : isSuper
+        ? SYSTEM_FEATURES.map((f) => f.key)
+        : ['view_analytics']
+    );
     setStaffAktif(staff.aktif !== undefined ? staff.aktif : true);
     setIsStaffModalOpen(true);
   };
@@ -577,6 +609,9 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
       return;
     }
 
+    const isSuper = hasFullAccessRole(staffJabatan) || staffAllowedLinkIds.includes('*');
+    const finalFeatures = isSuper ? SYSTEM_FEATURES.map((f) => f.key) : staffAllowedFeatures;
+
     const payload: Partial<StaffMember> = {
       id: editingStaff?.id,
       nama: staffNama.trim(),
@@ -585,6 +620,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
       unit: staffUnit,
       pin: staffPin.trim() || DEFAULT_STAFF_PIN,
       allowedLinkIds: staffAllowedLinkIds,
+      allowedFeatures: finalFeatures,
       aktif: staffAktif,
     };
 
@@ -829,8 +865,8 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
           {/* User Role Switcher & Action Controls */}
           <div className="flex items-center gap-2.5 flex-wrap justify-between md:justify-end">
-            {/* Role Badge & Switcher */}
-            {isSuperAccount || isFullAccess ? (
+            {/* Role Badge & Switcher: Hanya tampil jika Super Account & TIDAK sedang mensimulasikan staf non-super */}
+            {isSuperAccount && (!activeStaff || hasFullAccessRole(activeStaff.jabatan)) ? (
               <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 text-xs sm:text-sm">
                 <span className="text-xs sm:text-sm text-slate-400 font-medium">Peran:</span>
                 <select
@@ -885,7 +921,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                   Keluar
                 </button>
               </div>
-            ) : (isSuperAccount || isFullAccess) ? (
+            ) : isSuperAccount ? (
               <select
                 onChange={(e) => {
                   const s = staffList.find((item) => item.id === e.target.value);
@@ -924,7 +960,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
           </div>
         </div>
 
-        {/* 2. SUB-NAVIGATION TABS */}
+        {/* 2. SUB-NAVIGATION TABS (Fitur Disembunyikan Jika Tidak Diberi Akses pada Kategori 2) */}
         <div className="bg-slate-900 border-t border-slate-800 px-3 sm:px-6">
           <div className="max-w-7xl mx-auto flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-none py-1.5">
             {/* Tab 1: Manajemen Semua Link */}
@@ -941,8 +977,8 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               <span>Kelola Semua Link ({flatLinks.length})</span>
             </button>
 
-            {/* Tab 2: Hak Akses Staf & PIN (Khusus Full Access: Developer, Site Engineer, Manajer Operasional) */}
-            {(isSuperAccount || isFullAccess) && (
+            {/* Tab 2: Hak Akses Staf & PIN (Disembunyikan jika tidak memiliki izin manage_staff) */}
+            {canAccessStaffTab && (
               <button
                 type="button"
                 onClick={() => setActiveTab('staff')}
@@ -973,8 +1009,8 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               </span>
             </button>
 
-            {/* Tab 4: Integrasi Google Sheets (Khusus Full Access) */}
-            {(isSuperAccount || isFullAccess) && (
+            {/* Tab 4: Integrasi Google Sheets (Disembunyikan jika tidak memiliki izin sync_sheets) */}
+            {canAccessSheetsTab && (
               <button
                 type="button"
                 onClick={() => setActiveTab('gas')}
@@ -989,19 +1025,21 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               </button>
             )}
 
-            {/* Tab 5: Statistik & Tren */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('stats')}
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
-                activeTab === 'stats'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span>Statistik &amp; Analitik</span>
-            </button>
+            {/* Tab 5: Statistik & Tren (Disembunyikan jika tidak memiliki izin view_analytics) */}
+            {canAccessAnalyticsTab && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('stats')}
+                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
+                  activeTab === 'stats'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>Statistik &amp; Analitik</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -1175,8 +1213,8 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                   </button>
                 </div>
 
-                {/* Add Group & Add Link Buttons (Hanya Full Access) */}
-                {isFullAccess && (
+                {/* Add Group & Add Link Buttons (Disembunyikan jika tidak memiliki izin create_links) */}
+                {canCreateLinks && (
                   <>
                     <button
                       type="button"
@@ -1370,7 +1408,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
                             {/* Control Actions */}
                             <div className="flex items-center gap-2 self-end md:self-center shrink-0 flex-wrap">
-                              {isGroup && canEditItem && (
+                              {isGroup && canCreateLinks && canEditItem && (
                                 <button
                                   type="button"
                                   onClick={() => handleOpenAddLink(item.id, 'Link')}
@@ -1382,7 +1420,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                                 </button>
                               )}
 
-                              {isFullAccess && (
+                              {canAssignPic && (
                                 <button
                                   type="button"
                                   onClick={() => handleOpenAssignStaff(item)}
@@ -1413,7 +1451,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                                 </span>
                               )}
 
-                              {isFullAccess && (
+                              {canDeleteLinks && (
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteLink(item)}
@@ -1555,7 +1593,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                                     </div>
 
                                     <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-                                      {isFullAccess && (
+                                      {canAssignPic && (
                                         <button
                                           type="button"
                                           onClick={() => handleOpenAssignStaff(child)}
@@ -1584,7 +1622,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                                         </span>
                                       )}
 
-                                      {isFullAccess && (
+                                      {canDeleteLinks && (
                                         <button
                                           type="button"
                                           onClick={() => handleDeleteLink(child)}
@@ -1626,15 +1664,17 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               </div>
 
               <div className="flex items-center gap-2.5 flex-wrap">
-                <button
-                  type="button"
-                  onClick={handleResetAllPins}
-                  className="px-3.5 py-2 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs sm:text-sm font-bold transition-colors cursor-pointer shadow-2xs"
-                  title="Reset seluruh PIN staf kembali ke 1234"
-                >
-                  <RotateCcw className="w-4 h-4 inline mr-1.5" />
-                  <span>Reset Semua PIN (1234)</span>
-                </button>
+                {isFullAccess && (
+                  <button
+                    type="button"
+                    onClick={handleResetAllPins}
+                    className="px-3.5 py-2 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs sm:text-sm font-bold transition-colors cursor-pointer shadow-2xs"
+                    title="Reset seluruh PIN staf kembali ke 1234"
+                  >
+                    <RotateCcw className="w-4 h-4 inline mr-1.5" />
+                    <span>Reset Semua PIN (1234)</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -1653,6 +1693,9 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                 const assignedLinksCount = staff.allowedLinkIds?.includes('*')
                   ? flatLinks.filter((l) => l.tipe !== 'Grup').length
                   : (staff.allowedLinkIds || []).length;
+                const activeFeaturesCount = staff.allowedLinkIds?.includes('*') || hasFullAccessRole(staff.jabatan)
+                  ? SYSTEM_FEATURES.length
+                  : (staff.allowedFeatures || ['view_analytics']).length;
 
                 return (
                   <div
@@ -1697,11 +1740,19 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                           </span>
                         </div>
                         <div className="flex items-center justify-between text-slate-600">
-                          <span className="font-medium">Tautan Wewenang:</span>
+                          <span className="font-medium">Tautan (Kategori 1):</span>
                           <span className="font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
                             {staff.allowedLinkIds?.includes('*')
                               ? 'Semua Tautan (*)'
                               : `${assignedLinksCount} Tautan`}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-600">
+                          <span className="font-medium">Fitur (Kategori 2):</span>
+                          <span className="font-bold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded border border-purple-200">
+                            {staff.allowedLinkIds?.includes('*') || hasFullAccessRole(staff.jabatan)
+                              ? 'Semua Fitur (*)'
+                              : `${activeFeaturesCount} Fitur Aktif`}
                           </span>
                         </div>
                       </div>
@@ -1733,14 +1784,16 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                           <span>Atur Akses</span>
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteStaff(staff)}
-                          className="p-2 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
-                          title="Hapus staf"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {isFullAccess && !hasFullAccessRole(staff.jabatan) && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteStaff(staff)}
+                            className="p-2 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
+                            title="Hapus staf"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -2691,34 +2744,61 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                 </div>
               </div>
 
-              {/* Tautan yang Boleh Diedit Staf Ini */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-slate-700">
-                    Pilih Tautan yang Boleh Diedit Staf Ini ({staffAllowedLinkIds.length} dipilih):
-                  </label>
-                  <div className="flex items-center gap-2">
+              {/* Info jika profil adalah Super Administrator */}
+              {hasFullAccessRole(staffJabatan) && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
+                  <ShieldCheck className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Peran Super Administrator (Full Akses)</span>
+                    <p className="text-[11px] text-amber-800 mt-0.5">
+                      Peran ini otomatis memiliki akses penuh ke seluruh tautan (Kategori 1) dan seluruh fitur sistem (Kategori 2) tanpa batasan.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* ================================================================ */}
+              {/* KATEGORI 1: LINK YANG BOLEH DIEDIT & TIDAK BOLEH */}
+              {/* ================================================================ */}
+              <div className="border border-blue-200/80 rounded-2xl p-3 bg-blue-50/20 space-y-2">
+                <div className="flex items-center justify-between border-b border-blue-100 pb-2">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-blue-600 text-white px-2 py-0.5 rounded-md">
+                        Kategori 1
+                      </span>
+                      <h4 className="text-xs font-bold text-slate-900">
+                        Hak Akses Tautan (Boleh / Tidak Boleh Diedit)
+                      </h4>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Pilih tautan yang diizinkan untuk diedit ({staffAllowedLinkIds.length} dipilih). Tautan lain akan berstatus terkunci 🔒.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0 text-[11px]">
                     <button
                       type="button"
                       onClick={() => {
                         const selectableIds = flatLinks.filter((l) => l.tipe !== 'Grup').map((l) => l.id);
                         setStaffAllowedLinkIds(selectableIds);
                       }}
-                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                      className="font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                     >
                       ✓ Pilih Semua
                     </button>
-                    <span className="text-slate-300 text-xs">|</span>
+                    <span className="text-slate-300">|</span>
                     <button
                       type="button"
                       onClick={() => setStaffAllowedLinkIds([])}
-                      className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer"
+                      className="font-semibold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer"
                     >
-                      Batal Pilih
+                      Batal
                     </button>
                   </div>
                 </div>
-                <div className="max-h-48 overflow-y-auto bg-slate-50 rounded-xl border border-slate-200 p-2 space-y-1">
+
+                <div className="max-h-40 overflow-y-auto bg-white rounded-xl border border-slate-200 p-2 space-y-1">
                   {flatLinks
                     .filter((l) => l.tipe !== 'Grup')
                     .map((item) => {
@@ -2727,7 +2807,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                         <label
                           key={item.id}
                           className={`flex items-center gap-2 text-xs p-1.5 rounded cursor-pointer transition-colors ${
-                            isChecked ? 'bg-blue-50 font-bold text-blue-900 border border-blue-200' : 'text-slate-700 hover:bg-white'
+                            isChecked ? 'bg-blue-50 font-bold text-blue-900 border border-blue-200' : 'text-slate-700 hover:bg-slate-50'
                           }`}
                         >
                           <input
@@ -2746,6 +2826,94 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                         </label>
                       );
                     })}
+                </div>
+              </div>
+
+              {/* ================================================================ */}
+              {/* KATEGORI 2: FITUR YANG BOLEH DIAKSES ATAU TIDAK (DISEMBUNYIKAN) */}
+              {/* ================================================================ */}
+              <div className="border border-purple-200/80 rounded-2xl p-3 bg-purple-50/20 space-y-2">
+                <div className="flex items-center justify-between border-b border-purple-100 pb-2">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-purple-600 text-white px-2 py-0.5 rounded-md">
+                        Kategori 2
+                      </span>
+                      <h4 className="text-xs font-bold text-slate-900">
+                        Hak Akses Fitur Sistem (Disembunyikan jika tidak ada akses)
+                      </h4>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Fitur yang TIDAK dicentang otomatis disembunyikan sepenuhnya dari dashboard peran ini ({staffAllowedFeatures.length} aktif).
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setStaffAllowedFeatures(SYSTEM_FEATURES.map((f) => f.key))}
+                      className="font-bold text-purple-600 hover:text-purple-800 hover:underline cursor-pointer"
+                    >
+                      Beri Semua
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setStaffAllowedFeatures([])}
+                      className="font-semibold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer"
+                    >
+                      Cabut Semua
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 bg-white rounded-xl border border-slate-200 p-2 max-h-52 overflow-y-auto">
+                  {SYSTEM_FEATURES.map((feat) => {
+                    const isGranted = staffAllowedFeatures.includes(feat.key);
+                    return (
+                      <label
+                        key={feat.key}
+                        className={`flex items-start gap-2.5 p-2 rounded-xl cursor-pointer border transition-all ${
+                          isGranted
+                            ? 'bg-purple-50/70 border-purple-200 text-purple-950 font-semibold'
+                            : 'bg-slate-50/50 border-slate-200 text-slate-500 hover:bg-slate-100'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isGranted}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setStaffAllowedFeatures((prev) => [...prev, feat.key]);
+                            } else {
+                              setStaffAllowedFeatures((prev) => prev.filter((k) => k !== feat.key));
+                            }
+                          }}
+                          className="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500 cursor-pointer mt-0.5"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-bold text-slate-900 flex items-center gap-1">
+                              <span>{feat.icon}</span>
+                              <span>{feat.label}</span>
+                            </span>
+                            <span
+                              className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+                                isGranted
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-slate-200 text-slate-500'
+                              }`}
+                            >
+                              {isGranted ? 'Diizinkan' : 'Disembunyikan'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 mt-0.5 leading-tight font-normal">
+                            {feat.deskripsi}
+                          </p>
+                        </div>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
 

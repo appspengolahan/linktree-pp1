@@ -279,6 +279,7 @@ export function saveOrUpdateStaff(staffData: Partial<StaffMember>): { success: b
     pin: (staffData.pin && staffData.pin.trim()) || DEFAULT_STAFF_PIN,
     unit: staffData.unit || 'Operasional & Lini',
     allowedLinkIds: Array.isArray(staffData.allowedLinkIds) ? staffData.allowedLinkIds : [],
+    allowedFeatures: Array.isArray(staffData.allowedFeatures) ? staffData.allowedFeatures : [],
     aktif: staffData.aktif !== undefined ? staffData.aktif : true,
   };
 
