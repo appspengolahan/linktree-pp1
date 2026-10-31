@@ -131,8 +131,26 @@ export async function pushGasLink(
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   if (!url) return { success: false, error: 'URL GAS belum dikonfigurasi' };
 
+  // 1. Coba via GET terlebih dahulu (karena browser selalu sukses dengan GET ke Google Apps Script tanpa CORS redirect issues)
   try {
-    // Coba dengan POST terlebih dahulu
+    const targetUrl = new URL(url);
+    targetUrl.searchParams.set('action', 'saveLink');
+    targetUrl.searchParams.set('passcode', passcode);
+    targetUrl.searchParams.set('link', JSON.stringify(link));
+
+    const res = await fetch(targetUrl.toString());
+    if (res.ok) {
+      const json = await res.json();
+      if (json && (json.success || json.ok)) {
+        return { success: true, id: json.id };
+      }
+    }
+  } catch (getErr) {
+    console.warn('GET saveLink fallback to POST:', getErr);
+  }
+
+  // 2. Fallback via POST jika GET tidak merespons
+  try {
     const payload = {
       action: 'saveLink',
       link,
@@ -145,7 +163,6 @@ export async function pushGasLink(
         'Content-Type': 'text/plain;charset=utf-8',
       },
       body: JSON.stringify(payload),
-      redirect: 'follow',
     });
 
     if (res.ok) {
@@ -154,26 +171,11 @@ export async function pushGasLink(
         return { success: true, id: json.id };
       }
     }
-
-    // Fallback ke GET jika POST terhalang redirect/CORS
-    const fallbackUrl = new URL(url);
-    fallbackUrl.searchParams.set('action', 'saveLink');
-    fallbackUrl.searchParams.set('passcode', passcode);
-    fallbackUrl.searchParams.set('link', JSON.stringify(link));
-
-    const getRes = await fetch(fallbackUrl.toString());
-    if (getRes.ok) {
-      const getJson = await getRes.json();
-      if (getJson && (getJson.success || getJson.ok)) {
-        return { success: true, id: getJson.id };
-      }
-    }
-
-    return { success: false, error: 'Gagal memperbarui data di spreadsheet' };
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { success: false, error: msg };
+  } catch (postErr) {
+    console.warn('POST saveLink error:', postErr);
   }
+
+  return { success: false, error: 'Gagal memperbarui data di spreadsheet' };
 }
 
 /**
@@ -188,6 +190,28 @@ export async function pushGasDeleteLink(
 ): Promise<{ success: boolean; error?: string }> {
   if (!url) return { success: false, error: 'URL GAS belum dikonfigurasi' };
 
+  // 1. Coba via GET terlebih dahulu (karena sangat cepat dan tidak kena CORS redirect 302 di browser)
+  try {
+    const targetUrl = new URL(url);
+    targetUrl.searchParams.set('action', 'deleteLink');
+    targetUrl.searchParams.set('id', id);
+    if (label) {
+      targetUrl.searchParams.set('label', label);
+    }
+    targetUrl.searchParams.set('passcode', passcode);
+
+    const res = await fetch(targetUrl.toString());
+    if (res.ok) {
+      const json = await res.json();
+      if (json && (json.success || json.ok)) {
+        return { success: true };
+      }
+    }
+  } catch (getErr) {
+    console.warn('GET deleteLink fallback to POST:', getErr);
+  }
+
+  // 2. Fallback via POST
   try {
     const payload = {
       action: 'deleteLink',
@@ -195,67 +219,25 @@ export async function pushGasDeleteLink(
       label: label || '',
       passcode,
     };
-
-    // 1. Coba via POST
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain;charset=utf-8',
-        },
-        body: JSON.stringify(payload),
-        redirect: 'follow',
-      });
-
-      if (res.ok) {
-        const json = await res.json();
-        if (json && (json.success || json.ok)) {
-          return { success: true };
-        }
-      }
-    } catch {
-      // lanjut ke fallback GET jika POST gagal / terhalang CORS
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json && (json.success || json.ok)) return { success: true };
     }
-
-    // 2. Fallback via GET
-    try {
-      const fallbackUrl = new URL(url);
-      fallbackUrl.searchParams.set('action', 'deleteLink');
-      fallbackUrl.searchParams.set('id', id);
-      if (label) {
-        fallbackUrl.searchParams.set('label', label);
-      }
-      fallbackUrl.searchParams.set('passcode', passcode);
-
-      const getRes = await fetch(fallbackUrl.toString());
-      if (getRes.ok) {
-        const getJson = await getRes.json();
-        if (getJson && (getJson.success || getJson.ok)) {
-          return { success: true };
-        }
-      }
-    } catch {
-      // lanjut ke sync menyeluruh jika ada
-    }
-
-    // 3. Fallback Mutlak: Jika daftar tautan tersisa disertakan, push data bersih secara menyeluruh
-    if (remainingLinks && Array.isArray(remainingLinks)) {
-      const fullSyncRes = await pushGasAllLinks(url, remainingLinks, passcode);
-      if (fullSyncRes.success) {
-        return { success: true };
-      }
-    }
-
-    return { success: false, error: 'Gagal menghapus baris di spreadsheet' };
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { success: false, error: msg };
+  } catch {
+    // ignore
   }
-}
 
+  return { success: false, error: 'Gagal menghapus baris di spreadsheet' };
+}
 
 /**
  * Unggah seluruh daftar tautan lokal ke Google Spreadsheet sekaligus (Push All / Seed)
+ * Dilakukan per item via pushGasLink agar aman dari batas panjang URL & CORS redirect
  */
 export async function pushGasAllLinks(
   url: string,
@@ -263,45 +245,18 @@ export async function pushGasAllLinks(
   passcode: string = 'bkr153'
 ): Promise<{ success: boolean; count?: number; error?: string }> {
   if (!url) return { success: false, error: 'URL GAS belum dikonfigurasi' };
+  if (!links || links.length === 0) return { success: true, count: 0 };
 
   try {
-    const payload = {
-      action: 'saveAllLinks',
-      links,
-      passcode,
-    };
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
-      body: JSON.stringify(payload),
-      redirect: 'follow',
-    });
-
-    if (res.ok) {
-      const json = await res.json();
-      if (json && (json.success || json.ok)) {
-        return { success: true, count: json.count || links.length };
+    let successCount = 0;
+    for (const item of links) {
+      const res = await pushGasLink(url, item, passcode);
+      if (res.success) {
+        successCount++;
       }
+      await new Promise((r) => setTimeout(r, 60));
     }
-
-    // Fallback jika POST bermasalah
-    const fallbackUrl = new URL(url);
-    fallbackUrl.searchParams.set('action', 'saveAllLinks');
-    fallbackUrl.searchParams.set('passcode', passcode);
-    fallbackUrl.searchParams.set('data', JSON.stringify(links));
-
-    const getRes = await fetch(fallbackUrl.toString());
-    if (getRes.ok) {
-      const getJson = await getRes.json();
-      if (getJson && (getJson.success || getJson.ok)) {
-        return { success: true, count: getJson.count || links.length };
-      }
-    }
-
-    return { success: false, error: 'Gagal mengunggah data ke spreadsheet' };
+    return { success: successCount > 0, count: successCount };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return { success: false, error: msg };

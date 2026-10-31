@@ -66,7 +66,7 @@ export const INITIAL_STAFF_LIST: StaffMember[] = [
     email: 'budi.qc@batukarang.co.id',
     pin: DEFAULT_STAFF_PIN, // 123456
     unit: 'Kendali Mutu (QC)',
-    allowedLinkIds: ['GRP-03', 'LNK-09', 'LNK-10', 'LNK-11'],
+    allowedLinkIds: ['GRP-01', 'LNK-01', 'LNK-02'],
     aktif: true,
   },
   {
@@ -86,7 +86,7 @@ export const INITIAL_STAFF_LIST: StaffMember[] = [
     email: 'rian.shift@batukarang.co.id',
     pin: DEFAULT_STAFF_PIN,
     unit: 'Formulir & Shift',
-    allowedLinkIds: ['GRP-02', 'LNK-05', 'LNK-06', 'LNK-07', 'LNK-08'],
+    allowedLinkIds: ['GRP-02', 'LNK-05', 'LNK-06', 'LNK-07'],
     aktif: true,
   },
   {
@@ -96,7 +96,7 @@ export const INITIAL_STAFF_LIST: StaffMember[] = [
     email: 'dewi.k3@batukarang.co.id',
     pin: DEFAULT_STAFF_PIN,
     unit: 'K3LH & SOP',
-    allowedLinkIds: ['GRP-04', 'LNK-12', 'LNK-13', 'LNK-14'],
+    allowedLinkIds: ['GRP-MGT-01', 'LNK-MGT-01', 'LNK-MGT-02'],
     aktif: true,
   },
   {
@@ -473,17 +473,48 @@ export function saveUserRole(role: Role): void {
 // BLACKLIST / TOMBSTONE UNTUK TWO-WAY SYNC (Mencegah Link Terhapus Muncul Kembali)
 // ------------------------------------------------------------
 
+const PERMANENT_REMOVED_IDS = [
+  'LNK-08',
+  'GRP-03',
+  'GRP-04',
+  'LNK-09',
+  'LNK-10',
+  'LNK-11',
+  'LNK-12',
+  'LNK-13',
+  'LNK-14',
+  'LNK-15',
+  'LNK-16',
+  'LNK-PIN-01',
+  'LNK-PIN-02',
+];
+
+const PERMANENT_REMOVED_LABELS = [
+  'permintaan penarikan bahan baku silo',
+  'kendali mutu (qc) & laboratorium',
+  'k3lh, keselamatan & sop pabrik',
+  'tiket lapor ketidaksesuaian mutu (ncr)',
+  'checklist inspeksi apar & alat pelindung diri',
+  'peta jalur evakuasi & titik kumpul pabrik',
+  'google drive berkas resmi divisi produksi i',
+  'portal korporasi pt batu karang',
+  'lembar uji sampel fisik & kadar air',
+  'spesifikasi standar mutu produk 153',
+  'buku panduan k3 & prosedur tanggap darurat',
+  'spreadsheet master operasional divisi produksi i',
+  'hotline siaga operator & supervisor shift 153',
+];
+
 export function getDeletedLinkIds(): string[] {
   try {
     const raw = localStorage.getItem(CACHE_KEY_DELETED_IDS);
     const parsed: string[] = raw ? JSON.parse(raw) : [];
-    // Pastikan LNK-08 (Permintaan Penarikan Bahan Baku Silo) selalu ada di daftar hapus
-    if (!parsed.includes('LNK-08')) {
-      parsed.push('LNK-08');
-    }
+    PERMANENT_REMOVED_IDS.forEach((id) => {
+      if (!parsed.includes(id)) parsed.push(id);
+    });
     return parsed;
   } catch {
-    return ['LNK-08'];
+    return [...PERMANENT_REMOVED_IDS];
   }
 }
 
@@ -491,13 +522,12 @@ export function getDeletedLinkLabels(): string[] {
   try {
     const raw = localStorage.getItem(CACHE_KEY_DELETED_LABELS);
     const parsed: string[] = raw ? JSON.parse(raw) : [];
-    const target = 'permintaan penarikan bahan baku silo';
-    if (!parsed.includes(target)) {
-      parsed.push(target);
-    }
+    PERMANENT_REMOVED_LABELS.forEach((target) => {
+      if (!parsed.includes(target)) parsed.push(target);
+    });
     return parsed;
   } catch {
-    return ['permintaan penarikan bahan baku silo'];
+    return [...PERMANENT_REMOVED_LABELS];
   }
 }
 

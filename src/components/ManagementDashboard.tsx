@@ -36,6 +36,9 @@ import {
   Info,
   Globe,
   ShieldAlert,
+  FileCode2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import {
   LinkItem,
@@ -76,7 +79,13 @@ import {
   getStoredActivityLogs,
   clearStoredActivityLogs,
 } from '../services/storage';
-import { pushGasLink, pushGasDeleteLink, pushGasAllLinks, fetchGasLinks } from '../services/gasApi';
+import {
+  pushGasLink,
+  pushGasDeleteLink,
+  pushGasAllLinks,
+  fetchGasLinks,
+  generateProductionCodeGs,
+} from '../services/gasApi';
 import { hasFullAccessRole, canStaffAccessFeature } from '../services/rbac';
 
 interface ManagementDashboardProps {
@@ -222,6 +231,8 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
   // Cloud Actions State
   const [isSyncingGas, setIsSyncingGas] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [showGasCodePreview, setShowGasCodePreview] = useState(false);
+  const [copiedGasCode, setCopiedGasCode] = useState(false);
 
   // Trend Chart State
   const [trendRange, setTrendRange] = useState<'7d' | '14d'>('7d');
@@ -811,6 +822,22 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
     const hpUrl = `${currentOrigin}?gas=${encodeURIComponent(gasConfig.webAppUrl)}`;
     navigator.clipboard.writeText(hpUrl);
     showToast('Tautan Sinkronisasi HP berhasil disalin!');
+  };
+
+  const handleCopyGasCode = () => {
+    try {
+      const code = generateProductionCodeGs();
+      navigator.clipboard.writeText(code).then(() => {
+        setCopiedGasCode(true);
+        showToast('Kode Code.gs terbaru berhasil disalin ke clipboard!');
+        setTimeout(() => setCopiedGasCode(false), 3000);
+      }).catch(() => {
+        setCopiedGasCode(true);
+        showToast('Silakan salin kode langsung dari panel pratinjau di bawah.');
+      });
+    } catch {
+      showToast('Gagal menyalin kode secara otomatis.');
+    }
   };
 
   const handleExportJson = () => {
@@ -2265,6 +2292,85 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                   <span>Salin Link Sinkronisasi HP</span>
                 </button>
               </div>
+            </div>
+
+            {/* Kode Sumber Google Apps Script (Code.gs) & Panduan Update */}
+            <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-2xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                    <FileCode2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-base sm:text-lg text-slate-900">
+                      Kode Sumber Google Apps Script (Code.gs)
+                    </h4>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                      Script headless backend untuk sinkronisasi dua arah, pencatatan akun login (Sheet <code className="font-mono text-blue-600">User_Akses</code>), dan audit log (Sheet <code className="font-mono text-blue-600">Log_Aktivitas</code>).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleCopyGasCode}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold inline-flex items-center gap-2 cursor-pointer shadow-xs transition-colors"
+                  >
+                    {copiedGasCode ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+                    <span>{copiedGasCode ? 'Kode Berhasil Disalin!' : 'Salin Kode Code.gs'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowGasCodePreview(!showGasCodePreview)}
+                    className="px-3.5 py-2 rounded-xl border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs sm:text-sm font-bold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    {showGasCodePreview ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    <span>{showGasCodePreview ? 'Sembunyikan Kode' : 'Lihat / Periksa Kode'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Langkah Update Script */}
+              <div className="bg-slate-50 rounded-xl p-3.5 sm:p-4 border border-slate-200 text-xs sm:text-sm text-slate-700 space-y-2.5">
+                <div className="font-bold text-slate-900 flex items-center gap-2">
+                  <Info className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span>Panduan Langkah Update Script ke Google Spreadsheet:</span>
+                </div>
+                <ol className="list-decimal list-inside space-y-1.5 pl-1 text-slate-600 font-medium">
+                  <li>Buka Google Spreadsheet Master Divisi Produksi I (ID: <span className="font-mono font-bold text-slate-800">1dlpuMXPQEQcd4YKsmAUN7OrXc85wX7HJ9Pcd_3tlKFA</span>).</li>
+                  <li>Di bilah menu atas, klik menu <strong>Ekstensi (Extensions)</strong> &gt; <strong>Apps Script</strong>.</li>
+                  <li>Pada panel file di sebelah kiri, pilih file <strong>Code.gs</strong>.</li>
+                  <li>Hapus seluruh kode yang ada (Ctrl+A lalu Del), kemudian tempel (Paste) kode terbaru hasil salinan di atas.</li>
+                  <li>Klik tombol <strong>Deploy (Terapkan)</strong> di pojok kanan atas &gt; pilih <strong>New deployment (Penerapan baru)</strong>.</li>
+                  <li>Pilih jenis <strong>Web app</strong>, pastikan <em>Execute as:</em> <strong>Me (divisi1.bkr@gmail.com)</strong> dan <em>Who has access:</em> <strong>Anyone</strong>.</li>
+                  <li>Klik <strong>Deploy</strong>, lalu salin URL yang berakhiran <code className="font-mono text-blue-700">/exec</code> dan tempelkan ke kolom URL di atas jika ada perubahan URL.</li>
+                </ol>
+              </div>
+
+              {/* Pratinjau Kode (Collapsible) */}
+              {showGasCodePreview && (
+                <div className="mt-3 relative">
+                  <div className="flex items-center justify-between bg-slate-900 text-slate-300 px-4 py-2.5 rounded-t-xl text-xs font-mono">
+                    <span className="font-bold text-white flex items-center gap-1.5">
+                      <FileCode2 className="w-3.5 h-3.5 text-blue-400" />
+                      <span>Code.gs — Versi Produksi PT Batu Karang</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyGasCode}
+                      className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1 rounded-lg inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      {copiedGasCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedGasCode ? 'Tersalin' : 'Salin Semua'}</span>
+                    </button>
+                  </div>
+                  <pre className="bg-slate-950 text-emerald-400 p-4 rounded-b-xl text-[11px] sm:text-xs font-mono overflow-x-auto max-h-96 leading-relaxed border border-slate-800 select-all">
+                    <code>{generateProductionCodeGs()}</code>
+                  </pre>
+                </div>
+              )}
             </div>
 
             {/* Backup & Restore JSON Box */}
