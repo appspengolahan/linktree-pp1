@@ -69,11 +69,13 @@ export const CompanyLoginGate: React.FC<CompanyLoginGateProps> = ({
 
     setIsSubmitting(true);
 
-    // Cari apakah profil cocok dengan daftar staf internal
+    // Cari apakah profil cocok dengan daftar staf internal (Email, Nama Lengkap, atau Panggilan/Substring)
     const matchedStaff = staffList.find(
       (s) =>
-        s.email.toLowerCase() === cleanEmail ||
-        s.nama.toLowerCase() === cleanNama.toLowerCase()
+        (s.email && s.email.trim().toLowerCase() === cleanEmail) ||
+        (s.nama && s.nama.trim().toLowerCase() === cleanNama.toLowerCase()) ||
+        (s.nama && cleanNama.length >= 3 && s.nama.toLowerCase().includes(cleanNama.toLowerCase())) ||
+        (s.nama && cleanNama.length >= 3 && cleanNama.toLowerCase().includes(s.nama.toLowerCase()))
     );
 
     // Verifikasi PIN:
@@ -332,7 +334,7 @@ export const CompanyLoginGate: React.FC<CompanyLoginGateProps> = ({
           <div className="px-6 sm:px-8 py-3.5 bg-slate-950/70 border-t border-slate-800/70 text-center">
             <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
               <Building2 className="w-3.5 h-3.5 text-slate-500" />
-              <span>PT Batu Karang — Hak Cipta Divisi Produksi I &copy; {new Date().getFullYear()}</span>
+              <span>© 2026 PT Batu Karang · Divisi Produksi I · Developed by Lalu Mahendra</span>
             </div>
           </div>
         </div>

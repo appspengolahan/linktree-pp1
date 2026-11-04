@@ -42,9 +42,9 @@ import {
   getAuthenticatedCompanyUser,
   clearAuthenticatedCompanyUser,
   getDeletedLinkIds,
-  getDeletedLinkLabels,
   mergeRemoteLinksWithLocal,
   recordActivityLog,
+  getStoredStaffList,
 } from './services/storage';
 import { fetchGasLinks, postGasRecordClick, pushGasAllLinks, postGasRecordActivity } from './services/gasApi';
 import { isLinkRelevantForRole, hasFullAccessRole } from './services/rbac';
@@ -72,7 +72,29 @@ export default function App() {
   const [currentRole, setCurrentRole] = useState<Role>(getUserRole());
 
   // Staff Authentication & Scoped Edit State
-  const [activeStaff, setActiveStaff] = useState<StaffMember | null>(getActiveStaffSession());
+  const [activeStaff, setActiveStaff] = useState<StaffMember | null>(() => {
+    const session = getActiveStaffSession();
+    if (session) return session;
+    const authUser = getAuthenticatedCompanyUser();
+    if (authUser) {
+      const list = getStoredStaffList();
+      const cleanEmail = (authUser.email || '').trim().toLowerCase();
+      const cleanNama = (authUser.nama || '').trim().toLowerCase();
+      const found = list.find(
+        (s) =>
+          (authUser.staffId && s.id === authUser.staffId) ||
+          (s.email && s.email.trim().toLowerCase() === cleanEmail) ||
+          (s.nama && s.nama.trim().toLowerCase() === cleanNama) ||
+          (s.nama && cleanNama.length >= 3 && s.nama.toLowerCase().includes(cleanNama)) ||
+          (s.nama && cleanNama.length >= 3 && cleanNama.includes(s.nama.toLowerCase()))
+      );
+      if (found) {
+        setActiveStaffSession(found);
+        return found;
+      }
+    }
+    return null;
+  });
   const [isStaffAuthModalOpen, setIsStaffAuthModalOpen] = useState<boolean>(false);
   const [staffEditingTarget, setStaffEditingTarget] = useState<LinkItem | null>(null);
 
@@ -462,6 +484,26 @@ export default function App() {
         <CompanyLoginGate
           onLoginSuccess={(user) => {
             setCompanyUser(user);
+            const session = getActiveStaffSession();
+            if (session) {
+              setActiveStaff(session);
+            } else {
+              const list = getStoredStaffList();
+              const cleanEmail = (user.email || '').trim().toLowerCase();
+              const cleanNama = (user.nama || '').trim().toLowerCase();
+              const found = list.find(
+                (s) =>
+                  (user.staffId && s.id === user.staffId) ||
+                  (s.email && s.email.trim().toLowerCase() === cleanEmail) ||
+                  (s.nama && s.nama.trim().toLowerCase() === cleanNama) ||
+                  (s.nama && cleanNama.length >= 3 && s.nama.toLowerCase().includes(cleanNama)) ||
+                  (s.nama && cleanNama.length >= 3 && cleanNama.includes(s.nama.toLowerCase()))
+              );
+              if (found) {
+                setActiveStaff(found);
+                setActiveStaffSession(found);
+              }
+            }
             if (user.role) {
               setCurrentRole(user.role);
             }
@@ -783,11 +825,11 @@ export default function App() {
             if (item.tipe === 'Grup') {
               const canEditGroup =
                 !isPublicMode &&
-                (isFullAccess || (activeStaff ? canStaffEditLink(activeStaff, item.id, item) : false));
+                (isFullAccess || canStaffEditLink(activeStaff, item.id, item));
               const childAllowedIds =
                 !isPublicMode && isFullAccess
                   ? (item.children || []).map((c) => c.id)
-                  : !isPublicMode && activeStaff
+                  : !isPublicMode
                   ? (item.children || []).filter((c) => canStaffEditLink(activeStaff, c.id, c)).map((c) => c.id)
                   : [];
 
@@ -806,7 +848,7 @@ export default function App() {
 
             const canEditSingle =
               !isPublicMode &&
-              (isFullAccess || (activeStaff ? canStaffEditLink(activeStaff, item.id, item) : false));
+              (isFullAccess || canStaffEditLink(activeStaff, item.id, item));
             return (
               <LinkCard
                 key={item.id}
@@ -823,7 +865,7 @@ export default function App() {
 
       {/* 3. Footer: Sederhana & Bersih (Tombol Manajemen Dipindahkan ke Posisi Tidak Mencolok) */}
       <footer className="py-7 px-4 text-center text-xs text-slate-400 border-t border-slate-200/70 mt-auto space-y-2.5">
-        <p className="font-medium text-slate-500">© 2026 PT Batu Karang · Divisi Produksi I</p>
+        <p className="font-medium text-slate-500">© 2026 PT Batu Karang · Divisi Produksi I · Developed by Lalu Mahendra</p>
         
         {isPublicMode ? (
           <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400">

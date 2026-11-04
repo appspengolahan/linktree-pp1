@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   ArrowLeft,
   LayoutDashboard,
@@ -70,6 +70,7 @@ import {
   setLinkStaffPermissions,
   saveUserRole,
   setActiveStaffSession,
+  getActiveStaffSession,
   changeStaffPin,
   canStaffEditLink,
   updateLinkByStaff,
@@ -130,25 +131,65 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
     );
   }, [authenticatedUser]);
 
+  // Resolusi Sesi Staf Efektif (Jika activeStaff dari prop kosong, cari dari session atau akun login perangkat)
+  const effectiveStaff = useMemo<StaffMember | null>(() => {
+    if (activeStaff) return activeStaff;
+    const session = getActiveStaffSession();
+    if (session) return session;
+    if (authenticatedUser) {
+      const stored = getStoredStaffList();
+      const cleanEmail = (authenticatedUser.email || '').trim().toLowerCase();
+      const cleanNama = (authenticatedUser.nama || '').trim().toLowerCase();
+      const found = stored.find(
+        (s) =>
+          (authenticatedUser.staffId && s.id === authenticatedUser.staffId) ||
+          (s.email && s.email.trim().toLowerCase() === cleanEmail) ||
+          (s.nama && s.nama.trim().toLowerCase() === cleanNama) ||
+          (s.nama && cleanNama.length >= 3 && s.nama.toLowerCase().includes(cleanNama)) ||
+          (s.nama && cleanNama.length >= 3 && cleanNama.includes(s.nama.toLowerCase()))
+      );
+      if (found) return found;
+      return {
+        id: authenticatedUser.staffId || 'STF-AUTH',
+        nama: authenticatedUser.nama,
+        email: authenticatedUser.email,
+        jabatan: authenticatedUser.jabatan,
+        pin: '123456',
+        unit: authenticatedUser.unit,
+        allowedLinkIds: hasFullAccessRole(authenticatedUser.role) ? ['*'] : [],
+        aktif: true,
+      } as StaffMember;
+    }
+    return null;
+  }, [activeStaff, authenticatedUser]);
+
+  // Sinkronisasikan staf efektif ke state induk agar selalu selaras
+  useEffect(() => {
+    if (!activeStaff && effectiveStaff) {
+      onStaffSessionChange(effectiveStaff);
+    }
+  }, [activeStaff, effectiveStaff, onStaffSessionChange]);
+
+  const currentStaffObj = activeStaff || effectiveStaff;
+
   // Akses Penuh (Full Access) HANYA untuk Developer, Site Engineer, dan Manajer operasional
   const isFullAccess =
     hasFullAccessRole(currentRole) &&
-    (!activeStaff || hasFullAccessRole(activeStaff.jabatan) || activeStaff.allowedLinkIds?.includes('*'));
+    (!currentStaffObj || hasFullAccessRole(currentStaffObj.jabatan) || currentStaffObj.allowedLinkIds?.includes('*'));
 
   // Penentuan hak akses fitur sistem (Kategori 2):
   // Fitur yang tidak diizinkan otomatis DISEMBUNYIKAN dari dashboard staf ini
-  const canAccessStaffTab = isFullAccess || canStaffAccessFeature(activeStaff, 'manage_staff', currentRole);
-  const canAccessSheetsTab = isFullAccess || canStaffAccessFeature(activeStaff, 'sync_sheets', currentRole);
-  const canAccessAnalyticsTab = isFullAccess || canStaffAccessFeature(activeStaff, 'view_analytics', currentRole);
-  const canCreateLinks = isFullAccess || canStaffAccessFeature(activeStaff, 'create_links', currentRole);
-  const canDeleteLinks = isFullAccess || canStaffAccessFeature(activeStaff, 'delete_links', currentRole);
-  const canAssignPic = isFullAccess || canStaffAccessFeature(activeStaff, 'assign_pic', currentRole);
+  const canAccessStaffTab = isFullAccess || canStaffAccessFeature(currentStaffObj, 'manage_staff', currentRole);
+  const canAccessSheetsTab = isFullAccess || canStaffAccessFeature(currentStaffObj, 'sync_sheets', currentRole);
+  const canAccessAnalyticsTab = isFullAccess || canStaffAccessFeature(currentStaffObj, 'view_analytics', currentRole);
+  const canCreateLinks = isFullAccess || canStaffAccessFeature(currentStaffObj, 'create_links', currentRole);
+  const canDeleteLinks = isFullAccess || canStaffAccessFeature(currentStaffObj, 'delete_links', currentRole);
+  const canAssignPic = isFullAccess || canStaffAccessFeature(currentStaffObj, 'assign_pic', currentRole);
 
   // Cek apakah user berhak mengedit tautan/grup tertentu (Kategori 1)
   const checkCanEdit = (item: LinkItem): boolean => {
     if (isFullAccess) return true;
-    if (!activeStaff) return false;
-    return canStaffEditLink(activeStaff, item.id, item);
+    return canStaffEditLink(currentStaffObj, item.id, item);
   };
 
   // Dua mode tampilan saat login sebagai Admin / PIC Staf:
@@ -158,7 +199,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
   // Tabs: 'links' (Semua Link) | 'staff' (Kelola Staf & PIN) | 'mystaff' (Tautan Wewenang Saya) | 'gas' (Integrasi Sheets) | 'stats' (Statistik)
   const [activeTab, setActiveTab] = useState<'links' | 'staff' | 'mystaff' | 'gas' | 'stats'>(() => {
-    if (!isFullAccess && activeStaff) return 'links';
+    if (!isFullAccess && currentStaffObj) return 'links';
     return initialTab;
   });
 
@@ -300,6 +341,23 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
     });
     return ['Semua', ...Array.from(set)];
   }, [flatLinks]);
+
+  // Helper deduplikasi daftar staf penanggung jawab tautan (menghindari duplikasi badge pada tampilan)
+  const getUniqueStaffForLink = useCallback((link: LinkItem) => {
+    const raw = staffList.filter(
+      (s) =>
+        (link.allowedStaffIds || []).includes(s.id) ||
+        (s.allowedLinkIds || []).includes(link.id) ||
+        s.allowedLinkIds?.includes('*')
+    );
+    const seen = new Set<string>();
+    return raw.filter((s) => {
+      const key = (s.email || s.nama || s.id).trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [staffList]);
 
   // Filtered links
   const filteredTopLevel = useMemo(() => {
@@ -704,7 +762,8 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
   const handleSaveStaffFastEdit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!staffFastEditItem || !activeStaff) return;
+    const targetStaff = activeStaff || effectiveStaff;
+    if (!staffFastEditItem || !targetStaff) return;
 
     if (!fastEditUrl.trim()) {
       showAlert('URL tautan tidak boleh kosong.');
@@ -718,7 +777,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
         label: fastEditLabel.trim() || staffFastEditItem.label,
         deskripsi: fastEditDeskripsi.trim(),
       },
-      activeStaff
+      targetStaff
     );
 
     if (res.success) {
@@ -737,7 +796,8 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
   const handleSelfChangePin = (e: React.FormEvent) => {
     e.preventDefault();
     setSelfPinError('');
-    if (!activeStaff) return;
+    const targetStaff = activeStaff || effectiveStaff;
+    if (!targetStaff) return;
 
     if (selfNewPin !== selfConfirmPin) {
       setSelfPinError('Konfirmasi PIN baru tidak cocok.');
@@ -748,7 +808,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
       return;
     }
 
-    const res = changeStaffPin(activeStaff.id, selfOldPin, selfNewPin);
+    const res = changeStaffPin(targetStaff.id, selfOldPin, selfNewPin);
     if (res.success) {
       showToast('PIN pribadi Anda berhasil diperbarui.');
       setSelfOldPin('');
@@ -1395,13 +1455,8 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                     .filter((l) => l.parentId === item.id)
                     .sort((a, b) => (a.urutan || 0) - (b.urutan || 0));
 
-                  // Assigned staff
-                  const assignedStaff = staffList.filter(
-                    (s) =>
-                      (item.allowedStaffIds || []).includes(s.id) ||
-                      (s.allowedLinkIds || []).includes(item.id) ||
-                      s.allowedLinkIds?.includes('*')
-                  );
+                  // Assigned staff (deduplicated)
+                  const assignedStaff = getUniqueStaffForLink(item);
 
                   return (
                     <div
@@ -1631,12 +1686,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                                 const isFirstChild = cIdx === 0;
                                 const isLastChild = cIdx === displayedChildren.length - 1;
                                 const canEditChild = checkCanEdit(child);
-                                const childStaff = staffList.filter(
-                                  (s) =>
-                                    (child.allowedStaffIds || []).includes(s.id) ||
-                                    (s.allowedLinkIds || []).includes(child.id) ||
-                                    s.allowedLinkIds?.includes('*')
-                                );
+                                const childStaff = getUniqueStaffForLink(child);
 
                                 return (
                                   <div

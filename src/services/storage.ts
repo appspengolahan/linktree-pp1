@@ -323,12 +323,33 @@ export function deleteStoredStaff(id: string): { success: boolean } {
 
 // Cek Apakah Staf Memiliki Izin Mengedit Link Tertentu
 export function canStaffEditLink(staff: StaffMember | null, linkId: string, linkItem?: LinkItem): boolean {
-  if (!staff || !staff.aktif) return false;
+  // Jika staff null, coba fallback ke sesi staf aktif atau authenticated company user
+  let activeUser = staff;
+  if (!activeUser) {
+    activeUser = getActiveStaffSession();
+  }
+  if (!activeUser) {
+    const authUser = getAuthenticatedCompanyUser();
+    if (authUser) {
+      activeUser = {
+        id: authUser.staffId || '',
+        nama: authUser.nama,
+        email: authUser.email,
+        jabatan: authUser.jabatan,
+        pin: '',
+        unit: authUser.unit,
+        allowedLinkIds: ['Developer', 'Site Engineer', 'Manajer operasional'].includes(authUser.role || '') ? ['*'] : [],
+        aktif: true,
+      };
+    }
+  }
+
+  if (!activeUser || !activeUser.aktif) return false;
 
   // 1. Akses Penuh Mutlak (Full Access): Developer, Site Engineer, Manajer operasional, atau wildcard '*'
-  const jab = (staff.jabatan || '').toLowerCase().trim();
+  const jab = (activeUser.jabatan || '').toLowerCase().trim();
   if (
-    staff.allowedLinkIds.includes('*') ||
+    (Array.isArray(activeUser.allowedLinkIds) && activeUser.allowedLinkIds.includes('*')) ||
     jab === 'developer' ||
     jab === 'site engineer' ||
     jab === 'manajer operasional'
@@ -336,35 +357,93 @@ export function canStaffEditLink(staff: StaffMember | null, linkId: string, link
     return true;
   }
 
-  // 2. Cek apakah linkItem secara eksplisit memuat ID staf ini di allowedStaffIds
-  if (linkItem && Array.isArray(linkItem.allowedStaffIds) && linkItem.allowedStaffIds.includes(staff.id)) {
+  // 2. Tarik data staf terbaru dari master staffList agar wewenang selalu sinkron secara real-time
+  const staffList = getStoredStaffList();
+  const staffEmail = (activeUser.email || '').toLowerCase().trim();
+  const staffNama = (activeUser.nama || '').toLowerCase().trim();
+
+  // Cari seluruh entri staf yang cocok (berdasarkan ID, email, atau nama)
+  const matchingStaff = staffList.filter(
+    (s) =>
+      (activeUser?.id && s.id === activeUser.id) ||
+      (staffEmail && s.email && s.email.toLowerCase().trim() === staffEmail) ||
+      (staffNama && s.nama && (
+        s.nama.toLowerCase().trim() === staffNama ||
+        s.nama.toLowerCase().trim().includes(staffNama) ||
+        (staffNama.length >= 3 && staffNama.includes(s.nama.toLowerCase().trim()))
+      ))
+  );
+
+  // Jika salah satu entri master memiliki wewenang '*', berikan akses penuh
+  if (matchingStaff.some((s) => s.allowedLinkIds?.includes('*') || ['developer', 'site engineer', 'manajer operasional'].includes((s.jabatan || '').toLowerCase().trim()))) {
     return true;
   }
 
-  // 3. Cek apakah allowedLinkIds milik staf memuat linkId ini langsung
-  if (Array.isArray(staff.allowedLinkIds) && staff.allowedLinkIds.includes(linkId)) {
+  // Himpun seluruh kandidat ID staf (ID sesi + ID master yang cocok)
+  const candidateStaffIds = new Set<string>();
+  if (activeUser.id) candidateStaffIds.add(activeUser.id);
+  matchingStaff.forEach((s) => candidateStaffIds.add(s.id));
+
+  // Himpun seluruh allowedLinkIds dari sesi dan master
+  const allAllowedLinkIds = new Set<string>(Array.isArray(activeUser.allowedLinkIds) ? activeUser.allowedLinkIds : []);
+  matchingStaff.forEach((s) => {
+    if (Array.isArray(s.allowedLinkIds)) {
+      s.allowedLinkIds.forEach((lid) => allAllowedLinkIds.add(lid));
+    }
+  });
+
+  if (allAllowedLinkIds.has('*')) {
     return true;
   }
 
-  // 4. Jika linkItem memiliki parentId (berada dalam grup) dan staf diberi akses ke grup induk tersebut
-  if (linkItem && linkItem.parentId && Array.isArray(staff.allowedLinkIds) && staff.allowedLinkIds.includes(linkItem.parentId)) {
+  // Cari linkItem jika belum disediakan
+  let current = linkItem;
+  if (!current) {
+    try {
+      const allStored = getStoredLinks();
+      current = allStored.find((l) => l.id === linkId);
+    } catch {
+      // fallback
+    }
+  }
+
+  // 3. Cek apakah linkId terdaftar di allowedLinkIds milik staf
+  if (allAllowedLinkIds.has(linkId)) {
     return true;
   }
 
-  // 5. Periksa jika linkItem belum disediakan tapi tersimpan di database lokal
-  try {
-    const allStored = getStoredLinks();
-    const current = linkItem || allStored.find((l) => l.id === linkId);
-    if (current) {
-      if (Array.isArray(current.allowedStaffIds) && current.allowedStaffIds.includes(staff.id)) {
-        return true;
-      }
-      if (current.parentId && Array.isArray(staff.allowedLinkIds) && staff.allowedLinkIds.includes(current.parentId)) {
+  // 4. Cek apakah linkItem secara eksplisit memuat ID staf ini di allowedStaffIds
+  if (current && Array.isArray(current.allowedStaffIds)) {
+    for (const sid of candidateStaffIds) {
+      if (current.allowedStaffIds.includes(sid)) {
         return true;
       }
     }
-  } catch {
-    // fallback
+    // Cek juga jika allowedStaffIds memuat email atau nama staf langsung
+    if (staffEmail && current.allowedStaffIds.some((x) => x.toLowerCase().trim() === staffEmail)) {
+      return true;
+    }
+    if (staffNama && current.allowedStaffIds.some((x) => x.toLowerCase().trim() === staffNama)) {
+      return true;
+    }
+  }
+
+  // 5. Cek apakah link berada di dalam grup induk yang wewenangnya diberikan ke staf
+  if (current && current.parentId && allAllowedLinkIds.has(current.parentId)) {
+    return true;
+  }
+
+  // 6. Cek jika picName pada linkItem cocok dengan nama staf atau user
+  if (current && current.picName) {
+    const picLower = current.picName.toLowerCase().trim();
+    if (
+      picLower === staffNama ||
+      (staffNama.length >= 3 && picLower.includes(staffNama)) ||
+      (staffNama.length >= 3 && staffNama.includes(picLower)) ||
+      matchingStaff.some((m) => m.nama.toLowerCase().trim() === picLower)
+    ) {
+      return true;
+    }
   }
 
   return false;
