@@ -171,6 +171,7 @@ export default function App() {
   }, []);
 
   const togglePublicMode = () => {
+    setLinks(getStoredLinks());
     setIsPublicMode((prev) => {
       const next = !prev;
       const url = new URL(window.location.href);
@@ -567,8 +568,12 @@ export default function App() {
             setLinks(getStoredLinks());
             setStats(getStoredStats());
           }}
-          onBackToPortal={() => setViewMode('portal')}
+          onBackToPortal={() => {
+            setLinks(getStoredLinks());
+            setViewMode('portal');
+          }}
           onSwitchToPublic={() => {
+            setLinks(getStoredLinks());
             setViewMode('portal');
             setIsPublicMode(true);
             const url = new URL(window.location.href);

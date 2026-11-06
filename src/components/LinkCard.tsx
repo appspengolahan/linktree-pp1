@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronRight, ExternalLink, Copy, Check, Pin, Eye, Edit3, ShieldCheck } from 'lucide-react';
 import { LinkItem } from '../types';
+import { getStoredLinks } from '../services/storage';
 
 interface LinkCardProps {
   link: LinkItem;
@@ -19,19 +20,35 @@ export const LinkCard: React.FC<LinkCardProps> = ({
   const isPinned = String(link.pinned).toUpperCase() === 'TRUE';
   const isHidden = String(link.aktif).toUpperCase() !== 'TRUE';
 
+  const getFreshUrl = () => {
+    let freshUrl = (link.url || '').trim();
+    try {
+      const freshList = getStoredLinks();
+      const freshItem = freshList.find((l) => l.id === link.id);
+      if (freshItem && freshItem.url && freshItem.url.trim()) {
+        freshUrl = freshItem.url.trim();
+      }
+    } catch {
+      // fallback
+    }
+    return freshUrl;
+  };
+
   const handleCopy = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!link.url) return;
-    navigator.clipboard.writeText(link.url);
+    const targetUrl = getFreshUrl();
+    if (!targetUrl) return;
+    navigator.clipboard.writeText(targetUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleClick = () => {
     onClickLink(link.id);
-    if (link.url) {
-      window.open(link.url, '_blank', 'noopener,noreferrer');
+    const targetUrl = getFreshUrl();
+    if (targetUrl) {
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
     }
   };
 

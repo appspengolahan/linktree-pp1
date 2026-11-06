@@ -482,6 +482,7 @@ export function updateLinkByStaff(
   }
   target.terakhirUpdate = timeStr;
   target.picName = staff.nama;
+  target.updatedAtMs = Date.now();
 
   saveStoredLinks(links);
   return { success: true, message: `Tautan "${target.label}" berhasil diperbarui oleh ${staff.nama}.`, updatedLink: target };
@@ -915,9 +916,26 @@ export function mergeRemoteLinksWithLocal(remoteRawLinks: LinkItem[]): {
       mergedMap.set(loc.id, { ...loc });
       unpushedToRemote.push(loc);
     } else {
-      // Jika sudah ada di remote, pertahankan hak staf dan parentId jika ada di lokal
+      // Jika sudah ada di remote, periksa apakah data lokal memiliki pembaharuan lebih mutakhir
       const existing = mergedMap.get(remoteMatch.id);
       if (existing) {
+        const hasLocalUrlChange = Boolean(loc.url && loc.url.trim() && loc.url.trim() !== (remoteMatch.url || '').trim());
+        const isLocalNewer = Boolean(loc.updatedAtMs && (!remoteMatch.updatedAtMs || loc.updatedAtMs > remoteMatch.updatedAtMs));
+
+        if (hasLocalUrlChange || isLocalNewer) {
+          // Pertahankan nilai lokal yang diperbarui agar TIDAK tertimpa oleh data lama Google Sheets
+          existing.url = loc.url;
+          if (loc.label) existing.label = loc.label;
+          if (loc.deskripsi !== undefined) existing.deskripsi = loc.deskripsi;
+          if (loc.icon) existing.icon = loc.icon;
+          if (loc.kategori) existing.kategori = loc.kategori;
+          if (loc.urutan !== undefined) existing.urutan = loc.urutan;
+          if (loc.aktif !== undefined) existing.aktif = loc.aktif;
+          if (loc.pinned !== undefined) existing.pinned = loc.pinned;
+          if (loc.updatedAtMs) existing.updatedAtMs = loc.updatedAtMs;
+          unpushedToRemote.push(existing);
+        }
+
         if (
           (!existing.allowedStaffIds || existing.allowedStaffIds.length === 0) &&
           loc.allowedStaffIds &&
@@ -1130,6 +1148,7 @@ export function saveOrUpdateLink(link: Partial<LinkItem>): { success: boolean; i
       : existingIdx !== -1
       ? links[existingIdx].allowedStaffIds || []
       : [],
+    updatedAtMs: Date.now(),
   };
 
   if (existingIdx !== -1) {

@@ -28,8 +28,8 @@ export const INITIAL_LINKS: LinkItem[] = [
   },
   {
     id: 'LNK-MGT-01',
-    label: 'Surat Ketetapan & Kebijakan Manajemen',
-    url: '',
+    label: 'Ketetapan perusahaan tentang Jenis Tbk Blend & Peruntukan pada Merk',
+    url: 'https://drive.google.com/file/d/1hiVA9_KlXVd3g5CtchP37gaBnuVxcHWg/view?usp=drive_link',
     icon: '📄',
     kategori: 'Operasional & Lini',
     deskripsi: 'Surat Edaran Direksi & Kebijakan Operasional Terkini PT Batu Karang',
@@ -43,8 +43,8 @@ export const INITIAL_LINKS: LinkItem[] = [
   },
   {
     id: 'LNK-MGT-02',
-    label: 'Instruksi Kerja & Ketetapan Internal Divisi Produksi I',
-    url: '',
+    label: 'Surat Direktur Tentang TC SALITI',
+    url: 'https://drive.google.com/file/d/1Jynw9AyeUkDV-QohJ5xLL4QbUdUGSb6U/view?usp=drive_link',
     icon: '📑',
     kategori: 'Operasional & Lini',
     deskripsi: 'Pedoman teknis instruksi kerja operasional lini produksi tembakau blend',
@@ -153,7 +153,7 @@ export const INITIAL_LINKS: LinkItem[] = [
   {
     id: 'LNK-05',
     label: 'Panduan Planing Proses & Jadwal Kirim Tbk Blend',
-    url: 'https://drive.google.com/file/d/14GhMee5ZFLXkeuH4gZIxAngA_JJPy36o/view',
+    url: 'https://drive.google.com/file/d/14GhMee5ZFLXkeuH4gZIxAngA_JJPy36o/view?usp=sharing',
     icon: '⏱️',
     kategori: 'Formulir & Shift',
     deskripsi: 'Panduan Planing Proses & Jadwal Kirim Tbk Blend',
@@ -168,7 +168,7 @@ export const INITIAL_LINKS: LinkItem[] = [
   {
     id: 'LNK-06',
     label: 'Planing Proses Blend',
-    url: 'https://drive.google.com/file/d/1XB57KiagxKMekoO1mHvguWUq_zcVdbBg/view',
+    url: 'https://drive.google.com/file/d/1Z9RGDginU7oKNALSkNLEn1fwtMxU6aS9/view?usp=sharing',
     icon: '⚠️',
     kategori: 'Formulir & Shift',
     deskripsi: 'Planing Proses Blend',
@@ -183,7 +183,7 @@ export const INITIAL_LINKS: LinkItem[] = [
   {
     id: 'LNK-07',
     label: 'Jadwal Pengiriman Tbk Blend (TSG)',
-    url: 'https://drive.google.com/file/d/1y8-oQMklfl6TmIog0tcyHoMwKNNaBbwW/view',
+    url: 'https://drive.google.com/file/d/1y8-oQMklfl6TmIog0tcyHoMwKNNaBbwW/view?usp=sharing',
     icon: '🔄',
     kategori: 'Formulir & Shift',
     deskripsi: 'Jadwal Pengiriman Tbk Blend (TSG)',

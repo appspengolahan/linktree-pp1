@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, Pin, ShieldCheck, Edit3 } from 'lucide-react';
 import { LinkItem } from '../types';
+import { getStoredLinks } from '../services/storage';
 
 interface GroupCardProps {
   group: LinkItem;
@@ -33,6 +34,23 @@ export const GroupCard: React.FC<GroupCardProps> = ({
     setIsOpen(nextState);
     if (nextState) {
       onClickLink(group.id);
+    }
+  };
+
+  const handleChildOpen = (child: LinkItem) => {
+    onClickLink(child.id);
+    let targetUrl = (child.url || '').trim();
+    try {
+      const freshList = getStoredLinks();
+      const freshItem = freshList.find((l) => l.id === child.id);
+      if (freshItem && freshItem.url && freshItem.url.trim()) {
+        targetUrl = freshItem.url.trim();
+      }
+    } catch {
+      // fallback
+    }
+    if (targetUrl) {
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -131,14 +149,10 @@ export const GroupCard: React.FC<GroupCardProps> = ({
                     <div
                       role="link"
                       tabIndex={0}
-                      onClick={() => {
-                        onClickLink(child.id);
-                        if (child.url) window.open(child.url, '_blank', 'noopener,noreferrer');
-                      }}
+                      onClick={() => handleChildOpen(child)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
-                          onClickLink(child.id);
-                          if (child.url) window.open(child.url, '_blank', 'noopener,noreferrer');
+                          handleChildOpen(child);
                         }
                       }}
                       className={`w-full bg-white rounded-xl p-3 border transition-all duration-150 flex items-center justify-between gap-3 text-left shadow-2xs hover:shadow-sm hover:border-blue-400 cursor-pointer group/sub ${

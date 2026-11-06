@@ -113,6 +113,7 @@ export interface LinkItem {
   targetRoles?: Role[];
   picName?: string; // Nama PIC penanggung jawab unit
   allowedStaffIds?: string[]; // Daftar ID staf yang berhak mengedit tautan ini
+  updatedAtMs?: number; // Timestamp epoch untuk resolusi sinkronisasi terdepan
 }
 
 export interface GasConfig {
