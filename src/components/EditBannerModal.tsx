@@ -57,10 +57,10 @@ export const EditBannerModal: React.FC<EditBannerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 sm:backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90dvh]">
         {/* Header Modal */}
-        <div className="px-5 py-4 bg-[#091b31] text-white flex items-center justify-between border-b border-[#1e3250]">
+        <div className="px-5 py-3.5 bg-[#091b31] text-white flex items-center justify-between border-b border-[#1e3250] shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-white/10 text-amber-300">
               <Type className="w-5 h-5" />
@@ -76,7 +76,7 @@ export const EditBannerModal: React.FC<EditBannerModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl hover:bg-white/15 text-slate-200 hover:text-white transition-colors"
+            className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-white/15 text-slate-200 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>

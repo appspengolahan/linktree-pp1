@@ -91,10 +91,10 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClos
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 sm:backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg bg-slate-900 border border-slate-700/90 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh]">
         {/* Header */}
-        <div className="relative bg-gradient-to-r from-blue-900/80 via-slate-900 to-slate-900 p-4 sm:p-5 border-b border-slate-800 flex items-start justify-between">
+        <div className="relative bg-gradient-to-r from-blue-900/80 via-slate-900 to-slate-900 p-4 sm:p-5 border-b border-slate-800 flex items-start justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-slate-800/90 border border-blue-500/40 rounded-xl shadow-inner shrink-0">
               <Logo153 size="md" />
@@ -118,7 +118,7 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClos
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors cursor-pointer"
+            className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors cursor-pointer shrink-0"
             aria-label="Tutup"
           >
             <X className="w-4 h-4" />
@@ -421,13 +421,13 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({ isOpen, onClos
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between">
+        <div className="p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between shrink-0">
           <span className="text-[11px] text-slate-400">
             PWA Standalone • Ukuran &lt; 1MB • Ringan &amp; Cepat
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+            className="min-h-[44px] px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-colors cursor-pointer"
           >
             Tutup
           </button>

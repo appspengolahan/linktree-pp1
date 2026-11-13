@@ -188,15 +188,15 @@ export const CompanyLoginGate: React.FC<CompanyLoginGateProps> = ({
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-950 flex flex-col justify-center items-center p-4 sm:p-6 relative overflow-hidden font-sans">
+    <div className="min-h-[100dvh] w-full bg-slate-950 flex flex-col justify-center items-center p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6 relative overflow-x-hidden font-sans">
       {/* Background Lighting Effects */}
-      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-emerald-600/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="hidden sm:block absolute top-1/4 -left-32 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="hidden sm:block absolute bottom-1/4 -right-32 w-96 h-96 bg-emerald-600/15 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900/40 via-slate-950 to-slate-950 pointer-events-none" />
 
       {/* Main Container */}
       <div className="relative w-full max-w-lg z-10">
-        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden backdrop-blur-xl">
+        <div className="bg-slate-900/95 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden sm:backdrop-blur-md">
           {/* Header Banner */}
           <div className="px-6 sm:px-8 pt-8 pb-6 text-center border-b border-slate-800/80 bg-linear-to-b from-slate-800/40 to-transparent">
             <div className="flex justify-center mb-4">

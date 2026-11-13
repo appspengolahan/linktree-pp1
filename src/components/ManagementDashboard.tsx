@@ -88,6 +88,7 @@ import {
   generateProductionCodeGs,
 } from '../services/gasApi';
 import { hasFullAccessRole, canStaffAccessFeature } from '../services/rbac';
+import { formatWibDateTimeShort, formatWibDateTimeMedium } from '../utils/dateUtils';
 
 interface ManagementDashboardProps {
   currentRole: Role;
@@ -284,8 +285,11 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
   const [activityLogs, setActivityLogs] = useState<ActivityLogEntry[]>(() => getStoredActivityLogs());
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [userSortBy, setUserSortBy] = useState<'totalAkses' | 'terakhirAkses' | 'nama'>('totalAkses');
+  const [userPage, setUserPage] = useState(1);
   const [logSearchTerm, setLogSearchTerm] = useState('');
   const [logFilterAction, setLogFilterAction] = useState<'ALL' | 'LOGIN' | 'KLIK_LINK'>('ALL');
+  const [logPage, setLogPage] = useState(1);
+  const TABLE_PAGE_SIZE = 25;
 
   // Central Pop-up Dialog State (Pengganti window.confirm / window.alert native browser)
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -983,6 +987,20 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
     });
   }, [activityLogs, logSearchTerm, logFilterAction]);
 
+  const userTotalPages = Math.max(1, Math.ceil(filteredUserAccessList.length / TABLE_PAGE_SIZE));
+  const safeUserPage = Math.min(userPage, userTotalPages);
+  const paginatedUserAccessList = useMemo(() => {
+    const start = (safeUserPage - 1) * TABLE_PAGE_SIZE;
+    return filteredUserAccessList.slice(start, start + TABLE_PAGE_SIZE);
+  }, [filteredUserAccessList, safeUserPage]);
+
+  const logTotalPages = Math.max(1, Math.ceil(filteredActivityLogs.length / TABLE_PAGE_SIZE));
+  const safeLogPage = Math.min(logPage, logTotalPages);
+  const paginatedActivityLogs = useMemo(() => {
+    const start = (safeLogPage - 1) * TABLE_PAGE_SIZE;
+    return filteredActivityLogs.slice(start, start + TABLE_PAGE_SIZE);
+  }, [filteredActivityLogs, safeLogPage]);
+
   const totalUserLogins = useMemo(() => {
     return userAccessList.reduce((sum, u) => sum + (Number(u.totalAkses) || 0), 0);
   }, [userAccessList]);
@@ -1027,7 +1045,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans selection:bg-blue-100 selection:text-blue-900">
+    <div className="min-h-[100dvh] bg-[#f8fafc] text-slate-900 flex flex-col font-sans selection:bg-blue-100 selection:text-blue-900">
       {/* 1. TOP HEADER & IDENTITY BAR */}
       <header className="bg-slate-950 text-white border-b border-slate-800 sticky top-0 z-40 shadow-md">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -1244,7 +1262,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
       </header>
 
       {/* 3. MAIN DASHBOARD CONTENT */}
-      <main className="max-w-7xl w-full mx-auto px-3 sm:px-6 py-5 sm:py-7 flex-1 min-w-0">
+      <main className="max-w-7xl w-full mx-auto px-3 sm:px-6 pt-5 pb-[max(2rem,env(safe-area-inset-bottom))] sm:py-7 flex-1 min-w-0">
         {/* ============================== TAB 1: KELOLA SEMUA LINK ============================== */}
         {activeTab === 'links' && (
           <div className="space-y-4">
@@ -2670,14 +2688,20 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                   <input
                     type="text"
                     value={userSearchTerm}
-                    onChange={(e) => setUserSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                      setUserSearchTerm(e.target.value);
+                      setUserPage(1);
+                    }}
                     placeholder="Cari nama pengguna atau email..."
                     className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   {userSearchTerm && (
                     <button
                       type="button"
-                      onClick={() => setUserSearchTerm('')}
+                      onClick={() => {
+                        setUserSearchTerm('');
+                        setUserPage(1);
+                      }}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600"
                     >
                       ✕
@@ -2689,7 +2713,10 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                   <span className="text-xs font-bold text-slate-500">Urutkan:</span>
                   <select
                     value={userSortBy}
-                    onChange={(e) => setUserSortBy(e.target.value as any)}
+                    onChange={(e) => {
+                      setUserSortBy(e.target.value as any);
+                      setUserPage(1);
+                    }}
                     className="bg-slate-50 border border-slate-300 text-slate-800 text-xs font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                   >
                     <option value="totalAkses">Frekuensi Akses Tertinggi</option>
@@ -2723,12 +2750,13 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                         </td>
                       </tr>
                     ) : (
-                      filteredUserAccessList.map((user, idx) => {
+                      paginatedUserAccessList.map((user, idx) => {
                         const isFrequent = (Number(user.totalAkses) || 0) >= 5;
+                        const rowNumber = (safeUserPage - 1) * TABLE_PAGE_SIZE + idx + 1;
                         return (
                           <tr key={user.id || user.email} className="hover:bg-slate-50/80 transition-colors">
                             <td className="py-3 px-3.5 text-center font-mono text-xs text-slate-400">
-                              {idx + 1}
+                              {rowNumber}
                             </td>
                             <td className="py-3 px-3.5">
                               <div className="font-extrabold text-slate-900">{user.nama}</div>
@@ -2753,20 +2781,10 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                               </span>
                             </td>
                             <td className="py-3 px-3.5 text-xs text-slate-600 font-mono">
-                              {user.pertamaKaliLogin || user.pertamaLogin
-                                ? new Date(user.pertamaKaliLogin || user.pertamaLogin || '').toLocaleString('id-ID', {
-                                    dateStyle: 'short',
-                                    timeStyle: 'short',
-                                  })
-                                : '-'}
+                              {formatWibDateTimeShort(user.pertamaKaliLogin || user.pertamaLogin)}
                             </td>
                             <td className="py-3 px-3.5 text-xs text-slate-800 font-mono font-medium">
-                              {user.terakhirAkses
-                                ? new Date(user.terakhirAkses).toLocaleString('id-ID', {
-                                    dateStyle: 'short',
-                                    timeStyle: 'short',
-                                  })
-                                : '-'}
+                              {formatWibDateTimeShort(user.terakhirAkses)}
                             </td>
                             <td className="py-3 px-3.5 text-center">
                               <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -2780,6 +2798,36 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                   </tbody>
                 </table>
               </div>
+
+              {/* Paginasi Tabel Pengguna */}
+              {filteredUserAccessList.length > TABLE_PAGE_SIZE && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 text-xs text-slate-600">
+                  <span>
+                    Menampilkan {(safeUserPage - 1) * TABLE_PAGE_SIZE + 1}–{Math.min(safeUserPage * TABLE_PAGE_SIZE, filteredUserAccessList.length)} dari {filteredUserAccessList.length} akun
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={safeUserPage <= 1}
+                      onClick={() => setUserPage((p) => Math.max(1, p - 1))}
+                      className="min-h-[44px] px-4 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-40 font-bold cursor-pointer"
+                    >
+                      Sebelumnya
+                    </button>
+                    <span className="font-mono font-bold px-2">
+                      {safeUserPage} / {userTotalPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={safeUserPage >= userTotalPages}
+                      onClick={() => setUserPage((p) => Math.min(userTotalPages, p + 1))}
+                      className="min-h-[44px] px-4 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-40 font-bold cursor-pointer"
+                    >
+                      Berikutnya
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ========================================================================= */}
@@ -2822,11 +2870,14 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
               {/* Filter Aktivitas & Pencarian */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-bold self-start">
+                <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-bold self-start overflow-x-auto max-w-full">
                   <button
                     type="button"
-                    onClick={() => setLogFilterAction('ALL')}
-                    className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                    onClick={() => {
+                      setLogFilterAction('ALL');
+                      setLogPage(1);
+                    }}
+                    className={`min-h-[40px] px-3 py-1.5 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
                       logFilterAction === 'ALL'
                         ? 'bg-white text-blue-700 shadow-2xs'
                         : 'text-slate-600 hover:text-slate-900'
@@ -2836,8 +2887,11 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setLogFilterAction('KLIK_LINK')}
-                    className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                    onClick={() => {
+                      setLogFilterAction('KLIK_LINK');
+                      setLogPage(1);
+                    }}
+                    className={`min-h-[40px] px-3 py-1.5 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
                       logFilterAction === 'KLIK_LINK'
                         ? 'bg-white text-blue-700 shadow-2xs'
                         : 'text-slate-600 hover:text-slate-900'
@@ -2847,8 +2901,11 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setLogFilterAction('LOGIN')}
-                    className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                    onClick={() => {
+                      setLogFilterAction('LOGIN');
+                      setLogPage(1);
+                    }}
+                    className={`min-h-[40px] px-3 py-1.5 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
                       logFilterAction === 'LOGIN'
                         ? 'bg-white text-blue-700 shadow-2xs'
                         : 'text-slate-600 hover:text-slate-900'
@@ -2863,14 +2920,20 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                   <input
                     type="text"
                     value={logSearchTerm}
-                    onChange={(e) => setLogSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                      setLogSearchTerm(e.target.value);
+                      setLogPage(1);
+                    }}
                     placeholder="Cari user, link, email..."
                     className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   {logSearchTerm && (
                     <button
                       type="button"
-                      onClick={() => setLogSearchTerm('')}
+                      onClick={() => {
+                        setLogSearchTerm('');
+                        setLogPage(1);
+                      }}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600"
                     >
                       ✕
@@ -2901,15 +2964,12 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                         </td>
                       </tr>
                     ) : (
-                      filteredActivityLogs.map((log) => {
+                      paginatedActivityLogs.map((log) => {
                         const isLogin = log.actionType === 'LOGIN';
                         return (
                           <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
                             <td className="py-2.5 px-3 font-mono text-slate-600 whitespace-nowrap">
-                              {new Date(log.timestamp).toLocaleString('id-ID', {
-                                dateStyle: 'short',
-                                timeStyle: 'medium',
-                              })}
+                              {formatWibDateTimeMedium(log.timestamp)}
                             </td>
                             <td className="py-2.5 px-3">
                               <span className="font-extrabold text-slate-900 block">{log.userName}</span>
@@ -2951,6 +3011,36 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                   </tbody>
                 </table>
               </div>
+
+              {/* Paginasi Tabel Audit Trail */}
+              {filteredActivityLogs.length > TABLE_PAGE_SIZE && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 text-xs text-slate-600">
+                  <span>
+                    Menampilkan {(safeLogPage - 1) * TABLE_PAGE_SIZE + 1}–{Math.min(safeLogPage * TABLE_PAGE_SIZE, filteredActivityLogs.length)} dari {filteredActivityLogs.length} riwayat
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={safeLogPage <= 1}
+                      onClick={() => setLogPage((p) => Math.max(1, p - 1))}
+                      className="min-h-[44px] px-4 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-40 font-bold cursor-pointer"
+                    >
+                      Sebelumnya
+                    </button>
+                    <span className="font-mono font-bold px-2">
+                      {safeLogPage} / {logTotalPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={safeLogPage >= logTotalPages}
+                      onClick={() => setLogPage((p) => Math.min(logTotalPages, p + 1))}
+                      className="min-h-[44px] px-4 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-40 font-bold cursor-pointer"
+                    >
+                      Berikutnya
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -2958,8 +3048,8 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
       {/* ============================== MODAL 1: ADD / EDIT LINK ============================== */}
       {isFormModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 sm:backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-lg max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
             <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
               <h3 className="font-black text-sm sm:text-base">
                 {editingLink ? 'Edit Tautan / Grup' : '+ Tambah Tautan / Grup Baru'}
@@ -2973,7 +3063,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSaveLinkForm} className="p-5 space-y-3.5 max-h-[80vh] overflow-y-auto">
+            <form onSubmit={handleSaveLinkForm} className="p-5 space-y-3.5 max-h-[82dvh] overflow-y-auto">
               {/* Tipe Selector */}
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">Tipe Item</label>
@@ -3148,9 +3238,9 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
       {/* ============================== MODAL 2: ATUR STAF PIC CEPAT ============================== */}
       {assigningLinkTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-200">
-            <div className="px-5 py-4 bg-indigo-900 text-white flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 sm:backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-md max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+            <div className="px-5 py-3.5 bg-indigo-900 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-indigo-300" />
                 <h3 className="font-black text-sm">Atur Staf PIC Berwenang</h3>
@@ -3158,13 +3248,13 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               <button
                 type="button"
                 onClick={() => setAssigningLinkTarget(null)}
-                className="text-slate-400 hover:text-white p-1"
+                className="text-slate-400 hover:text-white p-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
               >
                 ✕
               </button>
             </div>
 
-            <div className="p-5 space-y-3.5">
+            <div className="p-5 space-y-3.5 overflow-y-auto flex-1">
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                   Tautan yang Diatur:
@@ -3250,8 +3340,8 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
       {/* ============================== MODAL 3: KELOLA STAF RBAC ============================== */}
       {isStaffModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 sm:backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-lg max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
             <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
               <h3 className="font-black text-sm sm:text-base">
                 {editingStaff ? 'Edit Profil Staf' : '+ Tambah Staf Penanggung Jawab'}
@@ -3259,13 +3349,13 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               <button
                 type="button"
                 onClick={() => setIsStaffModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1"
+                className="text-slate-400 hover:text-white p-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSaveStaff} className="p-5 space-y-3.5 max-h-[80vh] overflow-y-auto">
+            <form onSubmit={handleSaveStaff} className="p-5 space-y-3.5 max-h-[82dvh] overflow-y-auto">
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">Nama Lengkap *</label>
                 <input
@@ -3542,8 +3632,8 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
       {/* ============================== MODAL 4: RESET PIN STAF ============================== */}
       {resetPinTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-5 border border-slate-200 space-y-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 sm:backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl w-full max-w-sm max-h-[90dvh] overflow-y-auto shadow-2xl p-5 border border-slate-200 space-y-3">
             <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-1.5">
               <KeyRound className="w-4 h-4 text-amber-600" />
               <span>Reset PIN Staf</span>
@@ -3570,14 +3660,14 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               <button
                 type="button"
                 onClick={() => setResetPinTarget(null)}
-                className="px-3 py-1.5 rounded-xl text-slate-600 text-xs font-bold hover:bg-slate-100"
+                className="min-h-[44px] px-4 py-2 rounded-xl text-slate-600 text-xs font-bold hover:bg-slate-100"
               >
                 Batal
               </button>
               <button
                 type="button"
                 onClick={handleExecuteResetPin}
-                className="px-4 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold cursor-pointer"
+                className="min-h-[44px] px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold cursor-pointer"
               >
                 Reset Sekarang
               </button>
@@ -3588,9 +3678,9 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
       {/* ============================== MODAL 5: FAST EDIT LINK OLEH STAF ============================== */}
       {staffFastEditItem && activeStaff && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-200">
-            <div className="px-5 py-4 bg-emerald-800 text-white flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 sm:backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-md max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+            <div className="px-5 py-3.5 bg-emerald-800 text-white flex items-center justify-between shrink-0">
               <div>
                 <h3 className="font-black text-sm">Perbarui Tautan Tugas</h3>
                 <p className="text-[11px] text-emerald-200">
@@ -3600,13 +3690,13 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               <button
                 type="button"
                 onClick={() => setStaffFastEditItem(null)}
-                className="text-slate-300 hover:text-white p-1"
+                className="text-slate-300 hover:text-white p-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSaveStaffFastEdit} className="p-5 space-y-3">
+            <form onSubmit={handleSaveStaffFastEdit} className="p-5 space-y-3 overflow-y-auto flex-1">
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">
                   URL Google Sheets / Form Baru *
@@ -3649,13 +3739,13 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                 <button
                   type="button"
                   onClick={() => setStaffFastEditItem(null)}
-                  className="px-3 py-1.5 rounded-xl text-slate-600 text-xs font-bold hover:bg-slate-100"
+                  className="min-h-[44px] px-4 py-2 rounded-xl text-slate-600 text-xs font-bold hover:bg-slate-100"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+                  className="min-h-[44px] px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs cursor-pointer"
                 >
                   Simpan &amp; Sinkronkan
                 </button>
@@ -3667,8 +3757,8 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
 
       {/* ============================== CUSTOM CENTRAL CONFIRM / ALERT POPUP ============================== */}
       {confirmDialog && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl w-full max-w-sm sm:max-w-md shadow-2xl p-6 sm:p-7 border border-slate-200 text-left animate-in zoom-in-95 duration-150 flex flex-col gap-3.5 my-auto">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 sm:backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl w-full max-w-sm sm:max-w-md max-h-[90dvh] overflow-y-auto shadow-2xl p-6 sm:p-7 border border-slate-200 text-left animate-in zoom-in-95 duration-150 flex flex-col gap-3.5 my-auto">
             {/* Header: Exact text "linktree pp1 Says" */}
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center p-1 shrink-0 border border-slate-700">
@@ -3697,7 +3787,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                 <button
                   type="button"
                   onClick={() => setConfirmDialog(null)}
-                  className="px-5 py-2.5 rounded-full bg-[#a5f3fc] hover:bg-[#67e8f9] text-[#004e5a] text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+                  className="min-h-[44px] px-5 py-2.5 rounded-full bg-[#a5f3fc] hover:bg-[#67e8f9] text-[#004e5a] text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
                 >
                   {confirmDialog.cancelLabel || 'Cancel'}
                 </button>
@@ -3705,7 +3795,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
               <button
                 type="button"
                 onClick={() => confirmDialog.onConfirm()}
-                className="px-6 py-2.5 rounded-full bg-[#005f73] hover:bg-[#0a9396] text-white text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95"
+                className="min-h-[44px] px-6 py-2.5 rounded-full bg-[#005f73] hover:bg-[#0a9396] text-white text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95"
               >
                 {confirmDialog.confirmLabel || 'OK'}
               </button>

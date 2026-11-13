@@ -45,8 +45,8 @@ export const PWAInstallBanner: React.FC = () => {
 
   return (
     <>
-      <div className="fixed bottom-16 sm:bottom-4 left-3 right-3 sm:left-auto sm:right-4 z-40 sm:max-w-md animate-in slide-in-from-bottom-5 duration-300">
-        <div className="bg-slate-900/95 backdrop-blur-md border border-blue-500/40 rounded-2xl p-3.5 shadow-2xl text-white flex items-center justify-between gap-3">
+      <div className="fixed bottom-[max(4rem,calc(4rem+env(safe-area-inset-bottom)))] sm:bottom-4 left-3 right-3 sm:left-auto sm:right-4 z-40 sm:max-w-md animate-in slide-in-from-bottom-5 duration-300">
+        <div className="bg-slate-900 border border-blue-500/40 rounded-2xl p-3.5 shadow-2xl text-white flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="p-1.5 bg-slate-800 rounded-xl border border-slate-700 shrink-0">
               <Logo153 size="sm" />
@@ -73,15 +73,16 @@ export const PWAInstallBanner: React.FC = () => {
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={handleAction}
-              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
+              className="flex items-center gap-1 min-h-[44px] px-3.5 py-2 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Install</span>
             </button>
             <button
               onClick={handleDismiss}
-              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
               title="Tutup pemberitahuan"
+              aria-label="Tutup pemberitahuan"
             >
               <X className="w-4 h-4" />
             </button>

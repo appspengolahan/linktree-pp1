@@ -249,7 +249,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <>
       {/* Desktop Persistent Sidebar (Locked on scroll) */}
       <aside
-        className={`hidden lg:block shrink-0 transition-all duration-200 h-[calc(100vh-3.5rem)] sticky top-14 z-30 self-start ${
+        className={`hidden lg:block shrink-0 transition-all duration-200 h-[calc(100dvh-3.5rem)] sticky top-14 z-30 self-start ${
           collapsed ? 'w-20' : 'w-64'
         }`}
       >
@@ -259,8 +259,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Mobile Drawer Overlay */}
       {isOpenMobile && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
-          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs" onClick={onCloseMobile} />
-          <div className="relative w-72 max-w-[85vw] h-full shadow-2xl z-10 animate-in slide-in-from-left duration-200">
+          <div className="fixed inset-0 bg-slate-950/75" onClick={onCloseMobile} />
+          <div className="relative w-72 max-w-[85vw] h-[100dvh] shadow-2xl z-10 animate-in slide-in-from-left duration-200">
             {sidebarContent}
           </div>
         </div>

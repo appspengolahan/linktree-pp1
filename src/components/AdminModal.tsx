@@ -573,8 +573,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-4xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 sm:backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-4xl max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
         {/* Passcode Gate Screen */}
         {!isAuthenticated ? (
           <div className="p-6 sm:p-10 flex flex-col items-center justify-center text-center my-auto">
@@ -1701,15 +1701,15 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
         {/* Modal Form Tambah / Edit Link & Grup */}
         {isFormOpen && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
-            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto border border-slate-200">
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 sm:backdrop-blur-xs">
+            <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl max-h-[90dvh] overflow-y-auto border border-slate-200">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
                 <h3 className="font-bold text-base text-slate-900">
                   {editingLink ? `Edit ${formTipe}` : `Tambah ${formTipe} Baru`}
                 </h3>
                 <button
                   onClick={() => setIsFormOpen(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700"
+                  className="p-1.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1991,8 +1991,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
         {/* Modal Khusus Cepat: Atur Akses Staf Langsung */}
         {assigningStaffTarget && (
-          <div className="fixed inset-0 z-70 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150">
-            <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4">
+          <div className="fixed inset-0 z-70 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 sm:backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl max-h-[90dvh] overflow-y-auto border border-slate-200 space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
@@ -2123,8 +2123,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
         {/* Modal Form Tambah / Edit Staf & Checklist Hak Akses Tautan */}
         {isStaffFormOpen && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs">
-            <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl max-h-[92vh] overflow-y-auto border border-slate-200">
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 sm:backdrop-blur-xs">
+            <div className="bg-white rounded-2xl max-w-xl w-full p-5 sm:p-6 shadow-2xl max-h-[90dvh] overflow-y-auto border border-slate-200">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
                 <div className="flex items-center gap-2">
                   <Users className="w-5 h-5 text-blue-600" />
@@ -2376,8 +2376,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
         {/* Modal Developer Reset PIN Staf */}
         {resetPinTarget && (
-          <div className="fixed inset-0 z-65 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs">
-            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in duration-150">
+          <div className="fixed inset-0 z-65 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 sm:backdrop-blur-xs">
+            <div className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl max-h-[90dvh] overflow-y-auto border border-slate-200 animate-in fade-in duration-150">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700">
@@ -2517,8 +2517,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
         {/* Custom Centered Confirm Dialog: linktree pp1 Says */}
         {confirmDialog && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150">
-            <div className="bg-white rounded-3xl w-full max-w-sm sm:max-w-md shadow-2xl p-6 sm:p-7 border border-slate-200 text-left animate-in zoom-in-95 duration-150 flex flex-col gap-3.5 my-auto">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/65 sm:backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="bg-white rounded-3xl w-full max-w-sm sm:max-w-md max-h-[90dvh] overflow-y-auto shadow-2xl p-6 sm:p-7 border border-slate-200 text-left animate-in zoom-in-95 duration-150 flex flex-col gap-3.5 my-auto">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center p-1 shrink-0 border border-slate-700">
                   <Logo153 size="sm" />

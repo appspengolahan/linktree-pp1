@@ -39,14 +39,14 @@ export const Header: React.FC<HeaderProps> = ({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-white w-full max-w-full lg:h-14 flex flex-col justify-center">
-      <div className="px-3 sm:px-6 py-2.5 lg:py-0">
+    <header className="sticky top-0 z-40 bg-slate-900 lg:bg-slate-900/95 lg:backdrop-blur-md border-b border-slate-800 text-white w-full max-w-full lg:h-14 flex flex-col justify-center">
+      <div className="px-3 sm:px-6 py-2 lg:py-0">
         <div className="flex items-center justify-between gap-2">
           {/* Zone 1: Mobile Sidebar Toggle + Brand */}
           <div className="flex items-center gap-2 min-w-0">
             <button
               onClick={onToggleSidebarMobile}
-              className="lg:hidden p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 active:scale-95 transition-transform shrink-0"
+              className="lg:hidden min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 active:scale-95 transition-transform shrink-0"
               aria-label="Buka navigasi sidebar"
             >
               <Menu className="w-5 h-5" />
@@ -143,10 +143,10 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Mobile RBAC Menu Button */}
             <button
               onClick={onOpenRbac}
-              className="flex items-center gap-1 bg-slate-800 border border-slate-700 text-blue-400 text-[11px] font-bold rounded-lg px-2 py-1 active:scale-95"
+              className="flex items-center gap-1 min-h-[44px] bg-slate-800 border border-slate-700 text-blue-400 text-[11px] font-bold rounded-lg px-2.5 py-1.5 active:scale-95"
               title="Buka Menu RBAC"
             >
-              <UserCheck className="w-3 h-3 text-blue-400 shrink-0" />
+              <UserCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" />
               <span className="max-w-[70px] truncate">{currentRole.split(' ')[0]}</span>
               <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1 py-0.2 rounded font-mono">
                 RBAC
@@ -156,7 +156,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Mobile Quick Action Dropdown Trigger */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-white active:scale-95 transition-transform"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-white active:scale-95 transition-transform"
               aria-label="Aksi Cepat Mobile"
             >
               <MoreVertical className="w-4 h-4" />

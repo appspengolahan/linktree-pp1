@@ -11,6 +11,13 @@ import {
   ActivityLogEntry,
 } from '../types';
 import { INITIAL_LINKS, INITIAL_STATISTIK } from './defaultData';
+import { getWibTodayKey } from '../utils/dateUtils';
+
+// In-memory signature cache agar pembacaan berulang di HP/tablet tidak memicu JSON.parse & loop berulang
+let linksMemoryCache: { raw: string; data: LinkItem[] } | null = null;
+let staffMemoryCache: { raw: string; data: StaffMember[] } | null = null;
+let userAccessMemoryCache: { raw: string; data: UserAccessRecord[] } | null = null;
+let activityLogsMemoryCache: { raw: string; data: ActivityLogEntry[] } | null = null;
 
 const CACHE_KEY_LINKS = 'bkr_linkhub_cache_v3';
 const CACHE_KEY_STATS = 'bkr_linkhub_stats_v3';
@@ -119,6 +126,9 @@ export function getStoredStaffList(): StaffMember[] {
   try {
     const raw = localStorage.getItem(CACHE_KEY_STAFF_LIST);
     if (raw) {
+      if (staffMemoryCache && staffMemoryCache.raw === raw) {
+        return staffMemoryCache.data.map((s) => ({ ...s, allowedLinkIds: [...(s.allowedLinkIds || [])] }));
+      }
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
         let updated = false;
@@ -126,21 +136,27 @@ export function getStoredStaffList(): StaffMember[] {
           parsed.splice(2, 0, INITIAL_STAFF_LIST[2]);
           updated = true;
         }
+        const serialized = updated ? JSON.stringify(parsed) : raw;
         if (updated) {
-          localStorage.setItem(CACHE_KEY_STAFF_LIST, JSON.stringify(parsed));
+          localStorage.setItem(CACHE_KEY_STAFF_LIST, serialized);
         }
-        return parsed;
+        staffMemoryCache = { raw: serialized, data: parsed };
+        return parsed.map((s: StaffMember) => ({ ...s, allowedLinkIds: [...(s.allowedLinkIds || [])] }));
       }
     }
   } catch (e) {
     console.error('Gagal membaca data staf:', e);
   }
-  localStorage.setItem(CACHE_KEY_STAFF_LIST, JSON.stringify(INITIAL_STAFF_LIST));
-  return INITIAL_STAFF_LIST;
+  const fallbackSerialized = JSON.stringify(INITIAL_STAFF_LIST);
+  localStorage.setItem(CACHE_KEY_STAFF_LIST, fallbackSerialized);
+  staffMemoryCache = { raw: fallbackSerialized, data: INITIAL_STAFF_LIST };
+  return INITIAL_STAFF_LIST.map((s) => ({ ...s, allowedLinkIds: [...(s.allowedLinkIds || [])] }));
 }
 
 export function saveStoredStaffList(staffList: StaffMember[]): void {
-  localStorage.setItem(CACHE_KEY_STAFF_LIST, JSON.stringify(staffList));
+  const serialized = JSON.stringify(staffList);
+  localStorage.setItem(CACHE_KEY_STAFF_LIST, serialized);
+  staffMemoryCache = { raw: serialized, data: staffList };
 }
 
 // Sesi Staf yang Sedang Login
@@ -692,8 +708,14 @@ export function getStoredUserAccessList(): UserAccessRecord[] {
   try {
     const raw = localStorage.getItem(CACHE_KEY_USER_ACCESS);
     if (raw) {
+      if (userAccessMemoryCache && userAccessMemoryCache.raw === raw) {
+        return userAccessMemoryCache.data.map((u) => ({ ...u }));
+      }
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        userAccessMemoryCache = { raw, data: parsed };
+        return parsed.map((u: UserAccessRecord) => ({ ...u }));
+      }
     }
   } catch (e) {
     console.error('Gagal membaca cache user access:', e);
@@ -703,7 +725,9 @@ export function getStoredUserAccessList(): UserAccessRecord[] {
 
 export function saveStoredUserAccessList(list: UserAccessRecord[]): void {
   try {
-    localStorage.setItem(CACHE_KEY_USER_ACCESS, JSON.stringify(list));
+    const serialized = JSON.stringify(list);
+    localStorage.setItem(CACHE_KEY_USER_ACCESS, serialized);
+    userAccessMemoryCache = { raw: serialized, data: list };
   } catch (e) {
     console.error('Gagal menyimpan cache user access:', e);
   }
@@ -767,8 +791,14 @@ export function getStoredActivityLogs(): ActivityLogEntry[] {
   try {
     const raw = localStorage.getItem(CACHE_KEY_ACTIVITY_LOGS);
     if (raw) {
+      if (activityLogsMemoryCache && activityLogsMemoryCache.raw === raw) {
+        return activityLogsMemoryCache.data.map((item) => ({ ...item }));
+      }
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        activityLogsMemoryCache = { raw, data: parsed };
+        return parsed.map((item: ActivityLogEntry) => ({ ...item }));
+      }
     }
   } catch (e) {
     console.error('Gagal membaca cache activity logs:', e);
@@ -778,7 +808,9 @@ export function getStoredActivityLogs(): ActivityLogEntry[] {
 
 export function saveStoredActivityLogs(logs: ActivityLogEntry[]): void {
   try {
-    localStorage.setItem(CACHE_KEY_ACTIVITY_LOGS, JSON.stringify(logs));
+    const serialized = JSON.stringify(logs);
+    localStorage.setItem(CACHE_KEY_ACTIVITY_LOGS, serialized);
+    activityLogsMemoryCache = { raw: serialized, data: logs };
   } catch (e) {
     console.error('Gagal menyimpan cache activity logs:', e);
   }
@@ -814,6 +846,7 @@ export function recordActivityLog(
 export function clearStoredActivityLogs(): void {
   try {
     localStorage.removeItem(CACHE_KEY_ACTIVITY_LOGS);
+    activityLogsMemoryCache = null;
   } catch (e) {
     console.error('Gagal mereset activity logs:', e);
   }
@@ -960,9 +993,14 @@ export function getStoredLinks(): LinkItem[] {
   try {
     const raw = localStorage.getItem(CACHE_KEY_LINKS);
     if (raw) {
+      if (linksMemoryCache && linksMemoryCache.raw === raw) {
+        return linksMemoryCache.data.map((l) => ({ ...l }));
+      }
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return normalizeAndFlattenLinks(parsed);
+        const normalized = normalizeAndFlattenLinks(parsed);
+        linksMemoryCache = { raw, data: normalized };
+        return normalized.map((l) => ({ ...l }));
       }
     }
   } catch (e) {
@@ -970,13 +1008,17 @@ export function getStoredLinks(): LinkItem[] {
   }
 
   const initial = normalizeAndFlattenLinks(INITIAL_LINKS);
-  localStorage.setItem(CACHE_KEY_LINKS, JSON.stringify(initial));
-  return initial;
+  const serialized = JSON.stringify(initial);
+  localStorage.setItem(CACHE_KEY_LINKS, serialized);
+  linksMemoryCache = { raw: serialized, data: initial };
+  return initial.map((l) => ({ ...l }));
 }
 
 export function saveStoredLinks(links: LinkItem[]): void {
   const normalized = normalizeAndFlattenLinks(links);
-  localStorage.setItem(CACHE_KEY_LINKS, JSON.stringify(normalized));
+  const serialized = JSON.stringify(normalized);
+  localStorage.setItem(CACHE_KEY_LINKS, serialized);
+  linksMemoryCache = { raw: serialized, data: normalized };
 }
 
 export function getStoredStats(): StatistikData {
@@ -1045,7 +1087,7 @@ export function factoryResetAll(): { links: LinkItem[]; stats: StatistikData } {
 
 export function recordLocalVisit(): void {
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getWibTodayKey();
     const lastVisit = localStorage.getItem(CACHE_KEY_VISIT_DATE);
     const stats = getStoredStats();
 

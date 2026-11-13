@@ -481,7 +481,7 @@ export default function App() {
   // Jika pengguna belum melakukan login perusahaan internal, tampilkan gerbang autentikasi
   if (!companyUser) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center font-sans">
+      <div className="min-h-[100dvh] bg-slate-950 flex flex-col justify-center items-center font-sans">
         <CompanyLoginGate
           onLoginSuccess={(user) => {
             setCompanyUser(user);
@@ -524,7 +524,7 @@ export default function App() {
   // Tampilan Dashboard Manajemen Khusus (Developer, Engineer, Project Manager, Admin, & Staf PIC)
   if (viewMode === 'dashboard') {
     return (
-      <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
+      <div className="min-h-[100dvh] bg-[#f8fafc] text-slate-900 flex flex-col font-sans">
         {/* Top Strip Pengguna Internal */}
         <div className="bg-slate-950 text-slate-300 text-xs px-3 sm:px-6 py-1.5 border-b border-slate-800 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 truncate">
@@ -594,7 +594,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f1f5f9] text-slate-900 flex flex-col font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
+    <div className="min-h-[100dvh] bg-[#f1f5f9] text-slate-900 flex flex-col font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
       {/* 0. Internal Staff Identity Bar (Status Login Aktif, Layar Penuh, & Tombol Keluar) */}
       <div className="bg-slate-950 text-slate-300 text-xs px-3 sm:px-6 py-2 border-b border-slate-800/90 flex items-center justify-between gap-2 shadow-xs">
         <div className="flex items-center gap-2 truncate">
@@ -691,7 +691,7 @@ export default function App() {
       </section>
 
       {/* 2. Main Content: Vertically Stacked Clean Cards DENGAN UKURAN PROPORSIONAL & LEGA */}
-      <main className="max-w-2xl sm:max-w-3xl w-full mx-auto px-4 mt-6 sm:mt-8 space-y-4 pb-20 flex-1 min-w-0">
+      <main className="max-w-2xl sm:max-w-3xl w-full mx-auto px-4 mt-6 sm:mt-8 space-y-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-20 flex-1 min-w-0">
         {/* Menu Pengaturan & Kelola Link Utama (Hanya Tampil di Mode Internal/Admin) */}
         {!isPublicMode && (
           <div className="bg-slate-900 text-white rounded-2xl p-4 sm:p-5 shadow-md border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in duration-150">
@@ -869,7 +869,7 @@ export default function App() {
       </main>
 
       {/* 3. Footer: Sederhana & Bersih (Tombol Manajemen Dipindahkan ke Posisi Tidak Mencolok) */}
-      <footer className="py-7 px-4 text-center text-xs text-slate-400 border-t border-slate-200/70 mt-auto space-y-2.5">
+      <footer className="pt-7 pb-[max(1.75rem,env(safe-area-inset-bottom))] px-4 text-center text-xs text-slate-400 border-t border-slate-200/70 mt-auto space-y-2.5">
         <p className="font-medium text-slate-500">© 2026 PT Batu Karang · Divisi Produksi I · Developed by Lalu Mahendra</p>
         
         {isPublicMode ? (

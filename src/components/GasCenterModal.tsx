@@ -116,8 +116,8 @@ export const GasCenterModal: React.FC<GasCenterModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 sm:backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
         {/* Header */}
         <div className="px-6 py-4 bg-slate-900 border-b border-slate-800 text-white flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -295,20 +295,20 @@ export const GasCenterModal: React.FC<GasCenterModalProps> = ({
                 </div>
               </div>
 
-              {/* Vercel Environment Variable Instructions Card */}
+              {/* Cloudflare Environment Variable Instructions Card */}
               <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-xs text-slate-700 space-y-2">
                 <div className="flex items-center gap-2 font-bold text-amber-900">
                   <span className="text-base">💡</span>
-                  <span>Solusi Permanen untuk Vercel (Semua Pengunjung &amp; HP Otomatis Realtime)</span>
+                  <span>Solusi Permanen untuk Cloudflare Workers / Pages (Semua Perangkat Otomatis Realtime)</span>
                 </div>
                 <p className="text-slate-600 leading-relaxed text-[11px]">
-                  Agar setiap orang yang membuka link utama <code className="font-mono font-bold text-amber-900">linktree-pp1.vercel.app</code> di HP atau perangkat manapun langsung terhubung tanpa perlu kirim link khusus:
+                  Agar setiap orang yang membuka domain utama aplikasi di HP, tablet, maupun PC langsung terhubung tanpa perlu kirim tautan konfigurasi khusus:
                 </p>
                 <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-700 bg-white/70 p-2.5 rounded-xl border border-amber-200">
-                  <li>Buka dashboard Vercel Anda di proyek ini.</li>
-                  <li>Masuk ke <strong>Settings</strong> &gt; <strong>Environment Variables</strong>.</li>
-                  <li>Tambahkan variabel baru: Key = <code className="font-mono font-bold text-blue-700">VITE_GAS_URL</code> dan Value = <code className="font-mono text-slate-800">(URL Web App Google Script Anda)</code>.</li>
-                  <li>Lakukan <strong>Redeploy</strong>. Maka seluruh HP dan publik akan otomatis menggunakan spreadsheet tersebut secara realtime!</li>
+                  <li>Buka <strong>Cloudflare Dashboard</strong> &gt; <strong>Workers &amp; Pages</strong> proyek ini.</li>
+                  <li>Masuk ke <strong>Settings</strong> &gt; <strong>Build</strong> / <strong>Variables and Secrets</strong>.</li>
+                  <li>Tambahkan Build Variable: Key = <code className="font-mono font-bold text-blue-700">VITE_GAS_URL</code> dan Value = <code className="font-mono text-slate-800">(URL Web App Google Script Anda)</code>.</li>
+                  <li>Lakukan <strong>Retry / Redeploy</strong> (<code className="font-mono">npm run build</code> + <code className="font-mono">npx wrangler deploy</code>). Maka seluruh HP, tablet, dan publik akan otomatis sinkron realtime!</li>
                 </ol>
               </div>
 

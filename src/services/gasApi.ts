@@ -7,12 +7,194 @@ export interface PingResult {
   data?: unknown;
 }
 
+export const FALLBACK_GAS_URL =
+  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GAS_URL
+    ? String(import.meta.env.VITE_GAS_URL).trim()
+    : '') ||
+  'https://script.google.com/macros/s/AKfycbyJUOR2Tfxwazv2wdOLCSqAUNu6P4GSLLNVZy8E6Ps-oQ_skI8yRxvmLdu5FJ7TAUMKsQ/exec';
+
+// Cache flag jika aplikasi berjalan di Static Hosting (misal Cloudflare Workers Static Assets)
+// sehingga panggilan berikutnya ke /api/* tidak mengulang request HTML yang sia-sia.
+let isStaticHostingMode = false;
+
+function isInternalApiRoute(urlStr: string): boolean {
+  const trimmed = (urlStr || '').trim();
+  if (!trimmed) return true;
+  if (trimmed.startsWith('/api')) return true;
+  try {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://localhost';
+    const parsed = new URL(trimmed, origin);
+    if (
+      (typeof window !== 'undefined' && parsed.origin === window.location.origin && parsed.pathname.startsWith('/api')) ||
+      (!trimmed.startsWith('http://') && !trimmed.startsWith('https://'))
+    ) {
+      return true;
+    }
+  } catch {
+    return trimmed.startsWith('/');
+  }
+  return false;
+}
+
+function isHtmlPayload(contentType: string | null, rawText: string): boolean {
+  const ct = (contentType || '').toLowerCase();
+  if (ct.includes('text/html')) return true;
+  const trimmed = rawText.trim().toLowerCase();
+  return trimmed.startsWith('<!doctype') || trimmed.startsWith('<html') || trimmed.startsWith('<');
+}
+
+function resolveDirectGasUrl(inputUrl: string, params?: Record<string, string>): string {
+  const baseUrl = isInternalApiRoute(inputUrl) ? FALLBACK_GAS_URL : inputUrl;
+  const target = new URL(baseUrl);
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) {
+        target.searchParams.set(k, v);
+      }
+    });
+  }
+  return target.toString();
+}
+
+/**
+ * Fetch wrapper untuk Cloudflare Pages / Workers:
+ * Jika panggilan melewati rute internal /api/* dan mengembalikan HTML
+ * (karena Cloudflare SPA fallback tanpa proxy Express), otomatis menyimpan flag static hosting
+ * lalu fallback melakukan direct fetch langsung ke endpoint GAS (JSON/CSV) dengan CORS.
+ */
+async function fetchGasWithFallback(
+  url: string,
+  options?: {
+    method?: 'GET' | 'POST';
+    params?: Record<string, string>;
+    body?: unknown;
+  }
+): Promise<{ ok: boolean; status: number; statusText: string; data: Record<string, any> }> {
+  const method = options?.method || 'GET';
+
+  const executeDirectFetch = async (targetEndpoint: string) => {
+    const fetchUrl =
+      method === 'GET'
+        ? resolveDirectGasUrl(targetEndpoint, options?.params)
+        : isInternalApiRoute(targetEndpoint)
+        ? FALLBACK_GAS_URL
+        : targetEndpoint;
+
+    const init: RequestInit = {
+      method,
+      mode: 'cors',
+      redirect: 'follow',
+      headers:
+        method === 'POST'
+          ? { 'Content-Type': 'text/plain;charset=utf-8', Accept: 'application/json, text/csv, text/plain' }
+          : { Accept: 'application/json, text/csv, text/plain' },
+    };
+
+    if (method === 'POST' && options?.body !== undefined) {
+      init.body = typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
+    }
+
+    const res = await fetch(fetchUrl, init);
+    const contentType = res.headers.get('content-type');
+    const rawText = await res.text();
+
+    if (isHtmlPayload(contentType, rawText)) {
+      throw new Error('HTML_RESPONSE_RECEIVED');
+    }
+
+    let parsed: Record<string, any> = {};
+    const trimmed = rawText.trim();
+    if (trimmed) {
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+          parsed = JSON.parse(trimmed);
+        } catch {
+          throw new Error('INVALID_JSON_RESPONSE');
+        }
+      } else {
+        // Mendukung respons non-HTML seperti Google Sheets CSV / plain text
+        parsed = { ok: res.ok, rawText: trimmed };
+      }
+    }
+
+    return {
+      ok: res.ok,
+      status: res.status,
+      statusText: res.statusText,
+      data: parsed,
+    };
+  };
+
+  if (isInternalApiRoute(url)) {
+    if (!isStaticHostingMode) {
+      try {
+        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://localhost';
+        const apiUrl = new URL(url || '/api', origin);
+        if (method === 'GET' && options?.params) {
+          Object.entries(options.params).forEach(([k, v]) => apiUrl.searchParams.set(k, v));
+        }
+        const res = await fetch(apiUrl.toString(), {
+          method,
+          mode: 'cors',
+          redirect: 'follow',
+          headers:
+            method === 'POST'
+              ? { 'Content-Type': 'text/plain;charset=utf-8', Accept: 'application/json, text/csv, text/plain' }
+              : { Accept: 'application/json, text/csv, text/plain' },
+          body:
+            method === 'POST' && options?.body !== undefined
+              ? typeof options.body === 'string'
+                ? options.body
+                : JSON.stringify(options.body)
+              : undefined,
+        });
+        const contentType = res.headers.get('content-type');
+        const rawText = await res.text();
+
+        if (!isHtmlPayload(contentType, rawText) && res.ok) {
+          const trimmed = rawText.trim();
+          const parsed =
+            trimmed && (trimmed.startsWith('{') || trimmed.startsWith('['))
+              ? JSON.parse(trimmed)
+              : { ok: res.ok, rawText: trimmed };
+          return {
+            ok: res.ok,
+            status: res.status,
+            statusText: res.statusText,
+            data: parsed,
+          };
+        }
+
+        // Terdeteksi respons HTML dari SPA fallback Cloudflare -> aktifkan mode static hosting permanen
+        if (isHtmlPayload(contentType, rawText)) {
+          isStaticHostingMode = true;
+        }
+      } catch {
+        isStaticHostingMode = true;
+      }
+    }
+
+    return executeDirectFetch(FALLBACK_GAS_URL);
+  }
+
+  try {
+    return await executeDirectFetch(url);
+  } catch (err) {
+    if (err instanceof Error && err.message === 'HTML_RESPONSE_RECEIVED' && url !== FALLBACK_GAS_URL) {
+      isStaticHostingMode = true;
+      return executeDirectFetch(FALLBACK_GAS_URL);
+    }
+    throw err;
+  }
+}
+
 /**
  * Test koneksi ping ke Web App Google Apps Script
  */
 export async function pingGasEndpoint(url: string, passcode?: string): Promise<PingResult> {
   const start = performance.now();
-  if (!url || !url.startsWith('http')) {
+  const effectiveUrl = isInternalApiRoute(url) ? FALLBACK_GAS_URL : url;
+  if (!effectiveUrl || !effectiveUrl.startsWith('http')) {
     return {
       success: false,
       latencyMs: 0,
@@ -21,34 +203,26 @@ export async function pingGasEndpoint(url: string, passcode?: string): Promise<P
   }
 
   try {
-    const testUrl = new URL(url);
-    testUrl.searchParams.set('action', 'ping');
+    const params: Record<string, string> = { action: 'ping' };
     if (passcode) {
-      testUrl.searchParams.set('passcode', passcode);
+      params.passcode = passcode;
     }
 
-    const response = await fetch(testUrl.toString(), {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-    });
-
+    const res = await fetchGasWithFallback(url, { method: 'GET', params });
     const elapsed = Math.round(performance.now() - start);
 
-    if (response.ok) {
-      const data = await response.json();
+    if (res.ok) {
       return {
         success: true,
         latencyMs: elapsed,
         message: `Terhubung dengan sukses (${elapsed} ms)`,
-        data,
+        data: res.data,
       };
     } else {
       return {
         success: false,
         latencyMs: elapsed,
-        message: `Server merespons status ${response.status} ${response.statusText}`,
+        message: `Server merespons status ${res.status} ${res.statusText}`,
       };
     }
   } catch (err: unknown) {
@@ -66,16 +240,16 @@ export async function pingGasEndpoint(url: string, passcode?: string): Promise<P
  * Sinkronisasi data publik dari Google Apps Script
  */
 export async function fetchGasLinks(url: string): Promise<{ success: boolean; links?: LinkItem[]; error?: string }> {
-  if (!url) return { success: false, error: 'URL GAS belum dikonfigurasi' };
+  const targetEndpoint = url || FALLBACK_GAS_URL;
 
   try {
-    const targetUrl = new URL(url);
-    targetUrl.searchParams.set('action', 'getPublicLinks');
-
-    const res = await fetch(targetUrl.toString());
+    const res = await fetchGasWithFallback(targetEndpoint, {
+      method: 'GET',
+      params: { action: 'getPublicLinks' },
+    });
     if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
 
-    const json = await res.json();
+    const json = res.data;
     if (json && json.ok && Array.isArray(json.links)) {
       return { success: true, links: json.links };
     }
@@ -90,17 +264,16 @@ export async function fetchGasLinks(url: string): Promise<{ success: boolean; li
  * Sinkronisasi data statistik dari Google Apps Script
  */
 export async function fetchGasStats(url: string, token: string): Promise<{ success: boolean; stats?: StatistikData; error?: string }> {
-  if (!url) return { success: false, error: 'URL GAS belum dikonfigurasi' };
+  const targetEndpoint = url || FALLBACK_GAS_URL;
 
   try {
-    const targetUrl = new URL(url);
-    targetUrl.searchParams.set('action', 'getStatistik');
-    targetUrl.searchParams.set('token', token);
-
-    const res = await fetch(targetUrl.toString());
+    const res = await fetchGasWithFallback(targetEndpoint, {
+      method: 'GET',
+      params: { action: 'getStatistik', token },
+    });
     if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
 
-    const json = await res.json();
+    const json = res.data;
     if (json && json.ok) {
       return {
         success: true,
@@ -129,27 +302,26 @@ export async function pushGasLink(
   link: Partial<LinkItem>,
   passcode: string = 'bkr153'
 ): Promise<{ success: boolean; id?: string; error?: string }> {
-  if (!url) return { success: false, error: 'URL GAS belum dikonfigurasi' };
+  const targetEndpoint = url || FALLBACK_GAS_URL;
 
-  // 1. Coba via GET terlebih dahulu (karena browser selalu sukses dengan GET ke Google Apps Script tanpa CORS redirect issues)
+  // 1. Coba via GET terlebih dahulu (aman terhadap CORS redirect Google Apps Script)
   try {
-    const targetUrl = new URL(url);
-    targetUrl.searchParams.set('action', 'saveLink');
-    targetUrl.searchParams.set('passcode', passcode);
-    targetUrl.searchParams.set('link', JSON.stringify(link));
-
-    const res = await fetch(targetUrl.toString());
-    if (res.ok) {
-      const json = await res.json();
-      if (json && (json.success || json.ok)) {
-        return { success: true, id: json.id };
-      }
+    const res = await fetchGasWithFallback(targetEndpoint, {
+      method: 'GET',
+      params: {
+        action: 'saveLink',
+        passcode,
+        link: JSON.stringify(link),
+      },
+    });
+    if (res.ok && res.data && (res.data.success || res.data.ok)) {
+      return { success: true, id: res.data.id };
     }
   } catch (getErr) {
     console.warn('GET saveLink fallback to POST:', getErr);
   }
 
-  // 2. Fallback via POST jika GET tidak merespons
+  // 2. Fallback via POST dengan direct CORS jika GET tidak merespons
   try {
     const payload = {
       action: 'saveLink',
@@ -157,19 +329,13 @@ export async function pushGasLink(
       passcode,
     };
 
-    const res = await fetch(url, {
+    const res = await fetchGasWithFallback(targetEndpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8',
-      },
-      body: JSON.stringify(payload),
+      body: payload,
     });
 
-    if (res.ok) {
-      const json = await res.json();
-      if (json && (json.success || json.ok)) {
-        return { success: true, id: json.id };
-      }
+    if (res.ok && res.data && (res.data.success || res.data.ok)) {
+      return { success: true, id: res.data.id };
     }
   } catch (postErr) {
     console.warn('POST saveLink error:', postErr);
@@ -188,24 +354,25 @@ export async function pushGasDeleteLink(
   label?: string,
   remainingLinks?: LinkItem[]
 ): Promise<{ success: boolean; error?: string }> {
-  if (!url) return { success: false, error: 'URL GAS belum dikonfigurasi' };
+  const targetEndpoint = url || FALLBACK_GAS_URL;
 
-  // 1. Coba via GET terlebih dahulu (karena sangat cepat dan tidak kena CORS redirect 302 di browser)
+  // 1. Coba via GET terlebih dahulu
   try {
-    const targetUrl = new URL(url);
-    targetUrl.searchParams.set('action', 'deleteLink');
-    targetUrl.searchParams.set('id', id);
+    const params: Record<string, string> = {
+      action: 'deleteLink',
+      id,
+      passcode,
+    };
     if (label) {
-      targetUrl.searchParams.set('label', label);
+      params.label = label;
     }
-    targetUrl.searchParams.set('passcode', passcode);
 
-    const res = await fetch(targetUrl.toString());
-    if (res.ok) {
-      const json = await res.json();
-      if (json && (json.success || json.ok)) {
-        return { success: true };
-      }
+    const res = await fetchGasWithFallback(targetEndpoint, {
+      method: 'GET',
+      params,
+    });
+    if (res.ok && res.data && (res.data.success || res.data.ok)) {
+      return { success: true };
     }
   } catch (getErr) {
     console.warn('GET deleteLink fallback to POST:', getErr);
@@ -218,15 +385,14 @@ export async function pushGasDeleteLink(
       id,
       label: label || '',
       passcode,
+      remainingLinksCount: remainingLinks ? remainingLinks.length : undefined,
     };
-    const res = await fetch(url, {
+    const res = await fetchGasWithFallback(targetEndpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload),
+      body: payload,
     });
-    if (res.ok) {
-      const json = await res.json();
-      if (json && (json.success || json.ok)) return { success: true };
+    if (res.ok && res.data && (res.data.success || res.data.ok)) {
+      return { success: true };
     }
   } catch {
     // ignore
@@ -244,13 +410,13 @@ export async function pushGasAllLinks(
   links: LinkItem[],
   passcode: string = 'bkr153'
 ): Promise<{ success: boolean; count?: number; error?: string }> {
-  if (!url) return { success: false, error: 'URL GAS belum dikonfigurasi' };
+  const targetEndpoint = url || FALLBACK_GAS_URL;
   if (!links || links.length === 0) return { success: true, count: 0 };
 
   try {
     let successCount = 0;
     for (const item of links) {
-      const res = await pushGasLink(url, item, passcode);
+      const res = await pushGasLink(targetEndpoint, item, passcode);
       if (res.success) {
         successCount++;
       }
@@ -267,13 +433,14 @@ export async function pushGasAllLinks(
  * Catat klik tautan ke spreadsheet (fire and forget)
  */
 export function postGasRecordClick(url: string, id: string): void {
-  if (!url) return;
+  const targetEndpoint = isInternalApiRoute(url) ? FALLBACK_GAS_URL : url;
+  if (!targetEndpoint) return;
   try {
-    // Gunakan Image ping atau fetch GET untuk menghindari CORS issue
-    const targetUrl = new URL(url);
-    targetUrl.searchParams.set('action', 'recordClick');
-    targetUrl.searchParams.set('id', id);
-    fetch(targetUrl.toString(), { mode: 'no-cors' }).catch(() => {});
+    const targetUrl = resolveDirectGasUrl(targetEndpoint, {
+      action: 'recordClick',
+      id,
+    });
+    fetch(targetUrl, { mode: 'no-cors', redirect: 'follow' }).catch(() => {});
   } catch {
     // Ignore error
   }
@@ -287,7 +454,7 @@ export async function postGasRecordUserLogin(
   user: UserAccessRecord,
   passcode: string = 'bkr153'
 ): Promise<{ success: boolean; error?: string }> {
-  if (!url) return { success: false, error: 'URL GAS belum dikonfigurasi' };
+  const targetEndpoint = url || FALLBACK_GAS_URL;
   try {
     const payload = {
       action: 'recordUserAccess',
@@ -295,25 +462,23 @@ export async function postGasRecordUserLogin(
       passcode,
     };
     try {
-      const res = await fetch(url, {
+      const res = await fetchGasWithFallback(targetEndpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload),
-        redirect: 'follow',
+        body: payload,
       });
-      if (res.ok) {
-        const json = await res.json();
-        if (json && (json.success || json.ok)) return { success: true };
+      if (res.ok && res.data && (res.data.success || res.data.ok)) {
+        return { success: true };
       }
     } catch {
-      // fallback to GET
+      // fallback to direct GET no-cors
     }
 
-    const fallbackUrl = new URL(url);
-    fallbackUrl.searchParams.set('action', 'recordUserAccess');
-    fallbackUrl.searchParams.set('user', JSON.stringify(user));
-    fallbackUrl.searchParams.set('passcode', passcode);
-    fetch(fallbackUrl.toString(), { mode: 'no-cors' }).catch(() => {});
+    const fallbackUrl = resolveDirectGasUrl(targetEndpoint, {
+      action: 'recordUserAccess',
+      user: JSON.stringify(user),
+      passcode,
+    });
+    fetch(fallbackUrl, { mode: 'no-cors', redirect: 'follow' }).catch(() => {});
     return { success: true };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -329,25 +494,27 @@ export function postGasRecordActivity(
   log: ActivityLogEntry,
   passcode: string = 'bkr153'
 ): void {
-  if (!url) return;
+  const targetEndpoint = isInternalApiRoute(url) ? FALLBACK_GAS_URL : url;
+  if (!targetEndpoint) return;
   try {
     const payload = {
       action: 'recordActivity',
       log,
       passcode,
     };
-    fetch(url, {
+    fetch(targetEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload),
       mode: 'no-cors',
+      redirect: 'follow',
     }).catch(() => {
-      // Fallback ke GET
-      const fallbackUrl = new URL(url);
-      fallbackUrl.searchParams.set('action', 'recordActivity');
-      fallbackUrl.searchParams.set('log', JSON.stringify(log));
-      fallbackUrl.searchParams.set('passcode', passcode);
-      fetch(fallbackUrl.toString(), { mode: 'no-cors' }).catch(() => {});
+      const fallbackUrl = resolveDirectGasUrl(targetEndpoint, {
+        action: 'recordActivity',
+        log: JSON.stringify(log),
+        passcode,
+      });
+      fetch(fallbackUrl, { mode: 'no-cors', redirect: 'follow' }).catch(() => {});
     });
   } catch {
     // Ignore error
